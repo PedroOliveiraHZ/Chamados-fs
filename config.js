@@ -10,30 +10,30 @@ const CONFIG = {
 
   ALLOWED_USERS: [
     // ADMIN — acesso total, vê todos os chamados e verbas
-    { email: 'henrique@fortsun.com.br',    nome: 'Admin Fortsun',  role: 'admin',     setor: null, ini: 'PH' },
+    { email: 'henrique@fortsunbrasil.com',    nome: 'Admin Fortsun',  role: 'admin',     setor: null, ini: 'PH' },
 
     // TI / DADOS
-    { email: 'rafael.germano@fortsun.com.br',   nome: '',      role: 'user',      setor: 's1', ini: 'RG' },
+    { email: 'rafael.germano@fortsun.com',   nome: '',      role: 'user',      setor: 's1', ini: 'RG' },
 
     // RH
-    { email: 'nicolle@fortsun.com.br',      nome: '',         role: 'user',      setor: 's2', ini: 'NC' },
-    { email: 'ingird@fortsun.com.br',      nome: '',         role: 'user',      setor: 's2', ini: 'IG' },
+    { email: 'nicolle@fortsun.com',      nome: '',         role: 'user',      setor: 's2', ini: 'NC' },
+    { email: 'ingird@fortsun.com',      nome: '',         role: 'user',      setor: 's2', ini: 'IG' },
 
     // MARKETING
-    { email: 'debora@fortsun.com.br',  nome: 'R',    role: 'user',      setor: 's3', ini: 'D' },
+    { email: 'debora@fortsun.com',  nome: 'R',    role: 'user',      setor: 's3', ini: 'D' },
 
     // FINANCEIRO —
-    { email: 'lenise@fortsun.com.br',   nome: 'Lenise ',   role: 'aprovador', setor: 's4', ini: 'LD' },
+    { email: 'lenise@fortsun.com',   nome: 'Lenise ',   role: 'aprovador', setor: 's4', ini: 'LD' },
     //{ email: '@fortsun.com.br',    nome: '',      role: 'user',      setor: 's4', ini: 'PF' },
 
     // OPERAÇÕES
-    { email: 'daniel@fortsun.com.br',    nome: '',      role: 'user',      setor: 's5', ini: 'MO' },
+    { email: 'daniel@fortsun.com',    nome: '',      role: 'user',      setor: 's5', ini: 'MO' },
 
     // DP
-    { email: 'rayssa@fortsun.com.br',     nome: '',        role: 'user',      setor: 's6', ini: 'Rs' },
-{ email: 'alicia@fortsun.com.br',     nome: '',        role: 'user',      setor: 's6', ini: 'AL' },
+    { email: 'rayssa@fortsun.com',     nome: '',        role: 'user',      setor: 's6', ini: 'Rs' },
+{ email: 'alicia@fortsun.com',     nome: '',        role: 'user',      setor: 's6', ini: 'AL' },
     // COMPLIANCE / LOGÍSTICA
-    { email: 'iara@fortsun.com.br',     nome: '',    role: 'user',      setor: 's7', ini: 'I' },
+    { email: 'iara@fortsun.com',     nome: '',    role: 'user',      setor: 's7', ini: 'I' },
 
   
   ],
