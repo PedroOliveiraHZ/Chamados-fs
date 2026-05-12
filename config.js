@@ -24,7 +24,7 @@ const CONFIG = {
     { email: 'henrique@fortsun.com.br',          nome: 'Henrique',        role: 'admin',     setor: null, ini: 'PH' },
 
     // TI / DADOS
-    { email: 'rafael.germano@fortsun.com.br',    nome: 'Rafael Germano',  role: 'user',      setor: 's1', ini: 'RG' },
+    { email: 'rafael.germano@fortsunbrasil.com',    nome: 'Rafael Germano',  role: 'user',      setor: 's1', ini: 'RG' },
 
     // RH
     { email: 'nicolle@fortsun.com.br',           nome: 'Nicolle',         role: 'user',      setor: 's2', ini: 'NC' },
