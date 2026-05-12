@@ -161,89 +161,97 @@ function maybeInitGIS() {
     return;
   }
 
-  // Inicializa o botão Google Sign-In
-  google.accounts.id.initialize({
-    client_id: CONFIG.GOOGLE_CLIENT_ID,
-    callback: handleGoogleLogin,
-    auto_select: false,
-    cancel_on_tap_outside: true,
-  });
-
-  // Renderiza o botão
-  const btnContainer = document.getElementById('gSignInBtn');
-  if (btnContainer) {
-    google.accounts.id.renderButton(btnContainer, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      shape: 'rectangular',
-      width: 320,
-      logo_alignment: 'left',
-    });
-  }
-
-  // Token client para Sheets API
+  // Usa OAuth2 implicit flow com openid + email + sheets em UMA única janela
+  // Assim não abre popup separado — tudo num clique só
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.GOOGLE_CLIENT_ID,
-    scope: SCOPES,
+    scope: [
+      'openid',
+      'email',
+      'profile',
+      'https://www.googleapis.com/auth/spreadsheets',
+    ].join(' '),
     callback: onTokenReceived,
     error_callback: err => {
-      showLoginError('Erro OAuth: ' + (err.message || err.type));
+      const msg = err.type === 'popup_closed'
+        ? 'Login cancelado. Clique em "Entrar com Google" e conclua a autorização.'
+        : 'Erro OAuth: ' + (err.message || err.type || JSON.stringify(err));
+      showLoginError(msg);
       setLoading(false);
     },
   });
+
+  // Renderiza botão customizado (não o botão GIS padrão)
+  // para evitar o two-tap flow que gera o segundo popup
+  const btnContainer = document.getElementById('gSignInBtn');
+  if (btnContainer) {
+    btnContainer.innerHTML = `
+      <button onclick="doGoogleLogin()" style="
+        display:flex;align-items:center;gap:12px;
+        padding:10px 20px;border-radius:8px;
+        border:1px solid #dadce0;background:#fff;
+        cursor:pointer;font-size:14px;font-family:inherit;
+        color:#3c4043;font-weight:500;width:100%;justify-content:center;
+      ">
+        <svg width="18" height="18" viewBox="0 0 18 18">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.174 0 7.548 0 9s.348 2.826.957 4.039l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
+        </svg>
+        Entrar com Google
+      </button>`;
+  }
 }
 
 // ============================================================
-//  LOGIN
+//  LOGIN — único clique abre janela com tudo junto
 // ============================================================
-function handleGoogleLogin(response) {
+function doGoogleLogin() {
+  document.getElementById('loginError').style.display = 'none';
+  setLoading(true);
+  // prompt: 'select_account' força mostrar a tela de escolha de conta
+  // e já inclui o scope do Sheets — tudo em uma janela
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
+}
+
+// Recebe o token OAuth com openid + sheets
+async function onTokenReceived(resp) {
+  if (resp.error) {
+    const msg = resp.error === 'popup_closed'
+      ? 'Login cancelado. Tente novamente.'
+      : 'Erro ao autorizar: ' + resp.error + (resp.error_description ? ' — ' + resp.error_description : '');
+    showLoginError(msg);
+    setLoading(false);
+    return;
+  }
+
+  // Token já está no gapi.client. Buscar info do usuário via userinfo
   try {
-    const parts   = response.credential.split('.');
-    const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-    const email   = payload.email;
-    const userCfg = gU(email);
+    const userResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + resp.access_token },
+    });
+    const userInfo = await userResp.json();
+    const email    = (userInfo.email || '').toLowerCase();
+    const userCfg  = gU(email);
 
     if (!userCfg) {
       showLoginError(`Acesso não autorizado para ${email}. Contate o administrador.`);
+      setLoading(false);
       return;
     }
 
     CU = {
       ...userCfg,
       email,
-      picture: payload.picture || '',
-      googleName: payload.name || userCfg.nome,
+      picture: userInfo.picture || '',
+      googleName: userInfo.name || userCfg.nome,
     };
 
-    setLoading(true);
-    // Tenta sem prompt primeiro; se falhar (sem token), pede consent
-    try {
-      tokenClient.requestAccessToken({ prompt: 'none' });
-    } catch(e) {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    }
-
-  } catch (e) {
-    showLoginError('Erro ao processar login: ' + e.message);
-  }
-}
-
-async function onTokenReceived(resp) {
-  if (resp.error) {
-    // Se falhou com 'none', tenta novamente pedindo consentimento
-    if (resp.error === 'interaction_required' || resp.error === 'login_required' || resp.error === 'account_chooser_required') {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-      return;
-    }
-    showLoginError('Erro ao obter acesso ao Google Sheets: ' + resp.error);
-    setLoading(false);
-    return;
-  }
-  try {
     await setupSheets();
     await loadFromSheets();
     launchApp();
+
   } catch (e) {
     showLoginError('Erro ao carregar dados: ' + e.message);
     setLoading(false);
@@ -287,7 +295,6 @@ function renderTopbar() {
 
 function logout() {
   try {
-    google.accounts.id.disableAutoSelect();
     const token = gapi.client.getToken();
     if (token) {
       google.accounts.oauth2.revoke(token.access_token, () => {});
@@ -298,6 +305,7 @@ function logout() {
   document.getElementById('appView').style.display   = 'none';
   document.getElementById('loginView').style.display = 'block';
   document.getElementById('loginError').style.display = 'none';
+  setLoading(false);
 }
 
 // ============================================================

@@ -6,11 +6,6 @@
 <title>Fortsun — Sistema de Chamados</title>
 <link rel="stylesheet" href="style.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
-
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<!-- Google API client (Sheets) -->
-<script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
 </head>
 <body>
 
@@ -29,23 +24,8 @@
       <div class="login-title">Sistema de Chamados</div>
       <div class="login-sub">Entre com sua conta Google corporativa</div>
 
-      <!-- Botão Google Sign-In oficial -->
-      <div id="googleBtnWrap" style="display:flex;justify-content:center;margin:24px 0 16px">
-        <div id="g_id_onload"
-             data-client_id=""
-             data-callback="handleGoogleLogin"
-             data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-size="large"
-             data-theme="outline"
-             data-text="signin_with"
-             data-shape="rectangular"
-             data-logo_alignment="left"
-             data-width="320">
-        </div>
-      </div>
+      <!-- Botão Google Sign-In -->
+      <div id="gSignInBtn" style="display:flex;justify-content:center;margin:24px 0 16px"></div>
 
       <!-- Mensagem de erro -->
       <div id="loginError" class="login-error" style="display:none">
@@ -60,7 +40,7 @@
       </div>
 
       <p class="login-footer">
-        Apenas contas <strong>@fortsunbrasil.com</strong> autorizadas têm acesso.
+        Apenas contas <strong>@fortsun.com.br</strong> autorizadas têm acesso.
       </p>
     </div>
   </div>
@@ -121,12 +101,12 @@
         <label class="fl">Setor responsável / Destino</label>
         <select id="nCatSetor" onchange="onDestSetorChange()">
           <option value="">Selecione o setor...</option>
-          <option value="Financeiro"> Financeiro</option>
-          <option value="Dados/TI"> Dados / TI</option>
-          <option value="RH"> RH</option>
-          <option value="DP"> DP</option>
-          <option value="Marketing"> Marketing</option>
-          <option value="Compliance/Logística">Compliance / Logística</option>
+          <option value="Financeiro">💰 Financeiro</option>
+          <option value="Dados/TI">💻 Dados / TI</option>
+          <option value="RH">👥 RH</option>
+          <option value="DP">📋 DP</option>
+          <option value="Marketing">📣 Marketing</option>
+          <option value="Compliance/Logística">🗂 Compliance / Logística</option>
         </select>
       </div>
       <div id="subcatArea" style="display:none">
@@ -141,7 +121,7 @@
         <select id="nDest"></select>
       </div>
       <div class="fg">
-        <label class="fl">Valor solicitado (R$) — caso não tenha, deixe vazio</label>
+        <label class="fl">Valor solicitado (R$) — deixe 0 se não houver custo</label>
         <input id="nVal" type="number" value="0" min="0" step="0.01"/>
       </div>
       <div class="fg">
@@ -186,6 +166,11 @@
 
 <script src="config.js"></script>
 <script src="app.js"></script>
+
+<!-- Google API client (Sheets) -->
+<script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer onload="onGISLoad()"></script>
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
