@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Fortsun — Sistema de Chamados</title>
+<link rel="stylesheet" href="style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google API client (Sheets) -->
+<script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="loginView" class="login-view">
+  <div class="login-wrap">
+    <div class="login-box">
+
+      <div class="login-logo">
+        <!-- Logo com mix-blend-mode para remover fundo preto -->
+        <div class="logo-circle">
+          <img src="logo.png" alt="Fortsun" class="logo-img"/>
+        </div>
+      </div>
+
+      <div class="login-title">Sistema de Chamados</div>
+      <div class="login-sub">Entre com sua conta Google corporativa</div>
+
+      <!-- Botão Google Sign-In oficial -->
+      <div id="googleBtnWrap" style="display:flex;justify-content:center;margin:24px 0 16px">
+        <div id="g_id_onload"
+             data-client_id=""
+             data-callback="handleGoogleLogin"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-size="large"
+             data-theme="outline"
+             data-text="signin_with"
+             data-shape="rectangular"
+             data-logo_alignment="left"
+             data-width="320">
+        </div>
+      </div>
+
+      <!-- Mensagem de erro -->
+      <div id="loginError" class="login-error" style="display:none">
+        <i class="ti ti-alert-circle" aria-hidden="true"></i>
+        <span id="loginErrorMsg">Acesso não autorizado.</span>
+      </div>
+
+      <!-- Loading -->
+      <div id="loginLoading" style="display:none;text-align:center;color:var(--text-2);font-size:13px;padding:10px">
+        <i class="ti ti-loader" aria-hidden="true" style="animation:spin 1s linear infinite"></i>
+        Carregando...
+      </div>
+
+      <p class="login-footer">
+        Apenas contas <strong>@fortsun.com.br</strong> autorizadas têm acesso.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="appView" class="app-view" style="display:none">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">
+        <div class="logo-circle-sm">
+          <img src="logo.png" alt="Fortsun" class="logo-img"/>
+        </div>
+        <span class="topbar-brand">Fortsun</span>
+      </div>
+      <span class="pill" id="topSetor"></span>
+    </div>
+    <div class="topbar-right">
+      <img id="topPhoto" src="" alt="" class="av-photo" style="display:none"/>
+      <div class="av" id="topAv"></div>
+      <span id="topNm"></span>
+      <button class="btn btn-sm" onclick="logout()">
+        <i class="ti ti-logout" aria-hidden="true"></i> Sair
+      </button>
+    </div>
+  </header>
+  <div class="main-layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<!-- ===== MODAL: DETALHES DO CHAMADO ===== -->
+<div class="overlay" id="ovTicket">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="mTitle">Chamado</h3>
+      <button class="btn btn-icon" onclick="closeMod()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-footer" id="mFoot"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: NOVO CHAMADO ===== -->
+<div class="overlay" id="ovNew">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>Novo chamado</h3>
+      <button class="btn btn-icon" onclick="closeNew()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label class="fl">Título</label>
+        <input id="nTit" type="text" placeholder="Descreva brevemente a solicitação"/>
+      </div>
+      <div class="fg">
+        <label class="fl">Setor responsável / Destino</label>
+        <select id="nCatSetor" onchange="onDestSetorChange()">
+          <option value="">Selecione o setor...</option>
+          <option value="Financeiro">💰 Financeiro</option>
+          <option value="Dados/TI">💻 Dados / TI</option>
+          <option value="RH">👥 RH</option>
+          <option value="DP">📋 DP</option>
+          <option value="Marketing">📣 Marketing</option>
+          <option value="Compliance/Logística">🗂 Compliance / Logística</option>
+        </select>
+      </div>
+      <div id="subcatArea" style="display:none">
+        <div class="fg">
+          <label class="fl">Tipo de solicitação</label>
+          <div class="subcat-grid" id="subcatGrid"></div>
+        </div>
+        <div id="extraFields"></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Encaminhar para (pessoa ou setor)</label>
+        <select id="nDest"></select>
+      </div>
+      <div class="fg">
+        <label class="fl">Valor solicitado (R$) — deixe 0 se não houver custo</label>
+        <input id="nVal" type="number" value="0" min="0" step="0.01"/>
+      </div>
+      <div class="fg">
+        <label class="fl">Descrição detalhada</label>
+        <textarea id="nDesc" placeholder="Explique o que precisa e por quê..."></textarea>
+      </div>
+      <div class="fg">
+        <label class="fl">Prioridade</label>
+        <select id="nPrio">
+          <option>Baixa</option>
+          <option selected>Média</option>
+          <option>Alta</option>
+          <option>Urgente</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeNew()">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitTicket()">
+        <i class="ti ti-send" aria-hidden="true"></i> Enviar chamado
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: EDITAR VERBA ===== -->
+<div class="overlay" id="ovVerba">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>Editar verba do setor</h3>
+      <button class="btn btn-icon" onclick="closeVerba()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="vBody"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeVerba()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVerba()">
+        <i class="ti ti-check" aria-hidden="true"></i> Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</body>
+</html>
