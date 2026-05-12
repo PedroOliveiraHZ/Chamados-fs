@@ -156,7 +156,7 @@ function onGISLoad() {
 function maybeInitGIS() {
   if (!gapiReady || !gisReady) return;
 
-  if (!CONFIG.GOOGLE_CLIENT_ID || CONFIG.GOOGLE_CLIENT_ID.includes('SEU_CLIENT_ID')) {
+  if (!CONFIG.GOOGLE_CLIENT_ID || CONFIG.GOOGLE_CLIENT_ID.includes('969773095532-0l37bsenra6dop0v73ejr4kvp3dvmi9j.apps.googleusercontent.com')) {
     showLoginError('Configure o GOOGLE_CLIENT_ID em config.js antes de usar o sistema.');
     return;
   }
