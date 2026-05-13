@@ -12,7 +12,7 @@ const CONFIG = {
   ALLOWED_USERS: [
 
     // ADMIN
-    { email: 'henrique@fortsunbrasil.com',       nome: 'Henrique',        role: 'admin',     setor: null, ini: 'PH' },
+    { email: 'henrique@fortsunbrasil.com',       nome: 'Henrique',        role: 'admin',     setor: 's1', ini: 'PH' },
    
 
     // TI / DADOS
