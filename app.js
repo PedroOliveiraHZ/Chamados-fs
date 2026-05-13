@@ -502,7 +502,7 @@ function buildSidebar() {
     <div class="ni active" id="nv_tickets" onclick="showPage('tickets')">
       <i class="ti ti-ticket" aria-hidden="true"></i><span>Meus chamados</span></div>
     <div class="ni" id="nv_inbox" onclick="showPage('inbox')">
-      <i class="ti ti-inbox" aria-hidden="true"></i><span>Aguardando mim</span>
+      <i class="ti ti-inbox" aria-hidden="true"></i><span>Aguardando minha ação</span>
       ${pc ? `<span class="nbadge">${pc}</span>` : ''}</div>`;
   if (CU.role === 'admin') {
     h += `
