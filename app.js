@@ -352,27 +352,89 @@ async function saveOrcamentos() {
 }
 
 // ── Google Drive – upload de anexo ───────────────────────────────────
+async function ensureDriveScope() {
+  // Verifica se o token atual já inclui o escopo drive.file
+  // Força re-consentimento se não incluir
+  return new Promise((resolve, reject) => {
+    tokenClient.requestAccessToken({
+      prompt: '',          // sem prompt se já tiver sessão
+      hint: CU.email,
+      callback: (resp) => {
+        if (resp.error) reject(new Error('Re-auth falhou: ' + resp.error));
+        else resolve(resp);
+      },
+    });
+  });
+}
+
 async function uploadFileToDrive(file) {
-  const token = gapi.client.getToken();
-  if(!token) throw new Error('Sem token OAuth');
-  const meta  = { name: file.name, parents: CONFIG.DRIVE_FOLDER_ID && !CONFIG.DRIVE_FOLDER_ID.includes('SEU_') ? [CONFIG.DRIVE_FOLDER_ID] : [] };
-  const form  = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(meta)],{type:'application/json'}));
+  // Sempre pega o token mais recente (pode ter sido renovado)
+  let token = gapi.client.getToken();
+  if (!token) throw new Error('Sem token OAuth — faça login novamente.');
+
+  // Diagnóstico: loga os escopos do token atual
+  console.log('[Drive] Token access_token (primeiros 30 chars):', token.access_token.slice(0,30));
+
+  const hasDriveScope = await checkTokenHasDriveScope(token.access_token);
+  if (!hasDriveScope) {
+    console.warn('[Drive] Token sem escopo drive.file — forçando re-consentimento...');
+    sync('Autorizando acesso ao Drive...', 'loading');
+    try {
+      await ensureDriveScope();
+      token = gapi.client.getToken(); // token atualizado
+    } catch(e) {
+      throw new Error('Não foi possível autorizar o Drive. Faça logout e login novamente.');
+    }
+  }
+
+  const parents = CONFIG.DRIVE_FOLDER_ID && !CONFIG.DRIVE_FOLDER_ID.includes('SEU_')
+    ? [CONFIG.DRIVE_FOLDER_ID] : [];
+
+  const meta = { name: file.name, mimeType: file.type || 'application/octet-stream' };
+  if (parents.length) meta.parents = parents;
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
   form.append('file', file);
-  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,mimeType',{
-    method:'POST',
-    headers:{Authorization:'Bearer '+token.access_token},
-    body: form,
-  });
-  if(!resp.ok) throw new Error('Falha no upload: '+resp.status);
+
+  const resp = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,mimeType',
+    { method: 'POST', headers: { Authorization: 'Bearer ' + token.access_token }, body: form }
+  );
+
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    console.error('[Drive] Erro no upload:', resp.status, errBody);
+    throw new Error(`Falha no upload (${resp.status}): ${errBody}`);
+  }
+
   const data = await resp.json();
+  console.log('[Drive] Upload OK:', data);
+
   // Tornar público para visualização
-  await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`,{
-    method:'POST',
-    headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},
-    body:JSON.stringify({role:'reader',type:'anyone'}),
-  });
-  return { id:data.id, nome:data.name, url:data.webViewLink, tipo:data.mimeType };
+  try {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    });
+  } catch(e) {
+    console.warn('[Drive] Não foi possível tornar público — link pode exigir login:', e);
+  }
+
+  return { id: data.id, nome: data.name, url: data.webViewLink, tipo: data.mimeType };
+}
+
+async function checkTokenHasDriveScope(accessToken) {
+  try {
+    const r = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
+    const info = await r.json();
+    console.log('[Drive] Token scopes:', info.scope);
+    return (info.scope || '').includes('drive');
+  } catch(e) {
+    console.warn('[Drive] Não foi possível verificar escopos:', e);
+    return true; // tenta mesmo assim
+  }
 }
 
 // ── Sync bar ─────────────────────────────────────────────────────────
