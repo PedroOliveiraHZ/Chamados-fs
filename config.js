@@ -1,19 +1,21 @@
-
+// =====================================================================
+//  config.js  —  Fortsun Sistema de Chamados
+//  Mantenha este arquivo fora do controle de versão público
+// =====================================================================
 
 const CONFIG = {
 
-  
   GOOGLE_CLIENT_ID: '969773095532-0l37bsenra6dop0v73ejr4kvp3dvmi9j.apps.googleusercontent.com',
-
 
   SPREADSHEET_ID: '1x-dNniKp9o-WeFeZoMAKMXeoM0jv2-zQPM4qoIsuBQA',
 
+  // Pasta do Google Drive onde os anexos serão salvos (crie e cole o ID aqui)
+  // Exemplo: https://drive.google.com/drive/folders/XXXXXXXXXXX
+  DRIVE_FOLDER_ID: '19Mbf3Cy_a2H0YV8b-D7KpMK_jkhvUtpY',
 
   ALLOWED_USERS: [
-
     // ADMIN
-    { email: 'henrique@fortsunbrasil.com',       nome: 'Henrique',        role: 'admin',     setor: 's1', ini: 'PH' },
-   
+    { email: 'henrique@fortsunbrasil.com',          nome: 'Henrique',        role: 'admin',     setor: 's1', ini: 'PH' },
 
     // TI / DADOS
     { email: 'rafael.germano@fortsunbrasil.com',    nome: 'Rafael Germano',  role: 'user',      setor: 's1', ini: 'RG' },
@@ -37,10 +39,8 @@ const CONFIG = {
 
     // COMPLIANCE / LOGÍSTICA
     { email: 'iara@fortsunbrasil.com',              nome: 'Iara',            role: 'user',      setor: 's7', ini: 'IA' },
-
   ],
 
-  
   SETORES: [
     { id: 's1', nome: 'TI / Dados',        orcamento: 15000 },
     { id: 's2', nome: 'RH',                orcamento:  6000 },
@@ -50,4 +50,12 @@ const CONFIG = {
     { id: 's6', nome: 'DP',                orcamento:  8000 },
     { id: 's7', nome: 'Compliance / Log.', orcamento: 10000 },
   ],
+
+  // SLA em horas por prioridade
+  SLA: {
+    'Baixa':   { resposta: 24, resolucao: 72  },
+    'Média':   { resposta: 8,  resolucao: 24  },
+    'Alta':    { resposta: 4,  resolucao: 8   },
+    'Urgente': { resposta: 1,  resolucao: 4   },
+  },
 };
