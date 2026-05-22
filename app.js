@@ -12,7 +12,7 @@ let gapiReady   = false;
 let gisReady    = false;
 let tokenClient = null;
 let CU          = null;
-let S           = { tickets: [], setores: [] };
+let S           = { tickets: [], setores: [], historico: [] };
 let selSubcat   = null;
 let editSetorId = null;
 
@@ -21,6 +21,7 @@ const T_HDR = ['id','titulo','categoria','subcategoria','camposExtra','valor','d
                'prioridade','setorId','userId','userNome','status','criadoEm','steps','chat',
                'anexos','aceitoEm','aceitoPor','slaResposta','slaResolucao','csat'];
 const O_HDR = ['setorId','setorNome','orcamento','gasto','movimentos'];
+const H_HDR = ['mes','fechadoEm','fechadoPor','snapshot']; // histórico mensal
 
 // ── Categorias e subcategorias ───────────────────────────────────────
 const SETORES_CATS = {
@@ -333,8 +334,9 @@ async function setupSheets() {
   const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:SID()});
   const sheets=meta.result.sheets.map(s=>s.properties.title);
   const toCreate=[];
-  if(!sheets.includes('tickets'))    toCreate.push({addSheet:{properties:{title:'tickets'}}});
-  if(!sheets.includes('orcamentos')) toCreate.push({addSheet:{properties:{title:'orcamentos'}}});
+  if(!sheets.includes('tickets'))             toCreate.push({addSheet:{properties:{title:'tickets'}}});
+  if(!sheets.includes('orcamentos'))          toCreate.push({addSheet:{properties:{title:'orcamentos'}}});
+  if(!sheets.includes('historico_orcamentos'))toCreate.push({addSheet:{properties:{title:'historico_orcamentos'}}});
   if(toCreate.length){
     await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:SID(),resource:{requests:toCreate}});
     await delay(500);
@@ -347,12 +349,20 @@ async function setupSheets() {
     const initRows=(CONFIG.SETORES||[]).map(s=>[s.id,s.nome,s.orcamento,0,j([])]);
     if(initRows.length) await sheetAppend('orcamentos',initRows);
   }
+  const hh=await sheetGet('historico_orcamentos!A1:Z1');
+  if(!hh.length||!hh[0].length){
+    await sheetUpdate('historico_orcamentos!A1',[H_HDR]);
+  }
   sync('','hide');
 }
 
 async function loadFromSheets() {
   sync('Carregando chamados...','loading');
-  const [tRows,oRows]=await Promise.all([sheetGet('tickets!A2:Z9999'),sheetGet('orcamentos!A2:Z')]);
+  const [tRows,oRows,hRows]=await Promise.all([
+    sheetGet('tickets!A2:Z9999'),
+    sheetGet('orcamentos!A2:Z'),
+    sheetGet('historico_orcamentos!A2:Z9999'),
+  ]);
   S.tickets=tRows.map(row=>{
     const t={};
     T_HDR.forEach((h,i)=>{t[h]=row[i]!==undefined?row[i]:'';});
@@ -369,6 +379,12 @@ async function loadFromSheets() {
     orcamento:Number(row[2])||0,gasto:Number(row[3])||0,
     movimentos:pj(row[4])||[],
   })).filter(s=>s.id);
+  S.historico=hRows.map(row=>({
+    mes:      row[0]||'',
+    fechadoEm:Number(row[1])||0,
+    fechadoPor:row[2]||'',
+    snapshot: pj(row[3])||[],
+  })).filter(h=>h.mes);
   sync('','hide');
 }
 
@@ -390,6 +406,117 @@ async function saveOrcamentos() {
     await sheetClearAndWrite('orcamentos',O_HDR,rows);
     sync('Salvo!','ok');
   }catch(e){sync('Erro ao salvar orçamentos','err');throw e;}
+}
+
+async function saveHistorico() {
+  try{
+    const rows=S.historico.map(h=>[h.mes,h.fechadoEm,h.fechadoPor,j(h.snapshot)]);
+    await sheetClearAndWrite('historico_orcamentos',H_HDR,rows);
+  }catch(e){console.error('Erro ao salvar histórico:',e);}
+}
+
+async function fecharMes() {
+  // Determina o nome do mês atual
+  const agora   = new Date();
+  const nomeMes = agora.toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  const jaFechou = S.historico.some(h=>h.mes===nomeMes);
+  if(jaFechou){
+    alert(`O mês "${nomeMes}" já foi fechado.`);
+    return;
+  }
+  const confirma = confirm(
+    `Fechar o mês de ${nomeMes}?\n\n` +
+    `Isso irá:\n` +
+    `• Salvar um snapshot dos gastos atuais no histórico\n` +
+    `• Zerar os gastos e movimentações de todos os setores\n` +
+    `• Os orçamentos (limites) NÃO serão alterados\n\n` +
+    `Essa ação não pode ser desfeita.`
+  );
+  if(!confirma) return;
+
+  sync('Fechando mês...','loading');
+
+  // Snapshot do mês
+  const snapshot = S.setores.map(s=>({
+    id:         s.id,
+    nome:       s.nome,
+    orcamento:  s.orcamento,
+    gasto:      s.gasto,
+    movimentos: s.movimentos||[],
+  }));
+
+  S.historico.push({
+    mes:       nomeMes,
+    fechadoEm: Date.now(),
+    fechadoPor: CU.email,
+    snapshot,
+  });
+
+  // Zera gastos e movimentações (mantém orçamento)
+  S.setores.forEach(s=>{ s.gasto=0; s.movimentos=[]; });
+
+  await Promise.all([saveOrcamentos(), saveHistorico()]);
+  sync('Mês fechado com sucesso!','ok');
+  showPage('fin');
+}
+
+function renderHistoricoOrcamentos() {
+  if(!S.historico.length) return '';
+  let h=`<div class="divl" style="margin:24px 0 16px"></div>
+    <div class="ph" style="margin-bottom:12px">
+      <div style="font-size:16px;font-weight:700;color:var(--navy)">
+        <i class="ti ti-history" aria-hidden="true"></i> Histórico mensal
+      </div>
+    </div>`;
+  const meses=[...S.historico].reverse();
+  meses.forEach(m=>{
+    const tOrc=m.snapshot.reduce((a,s)=>a+s.orcamento,0);
+    const tGas=m.snapshot.reduce((a,s)=>a+s.gasto,0);
+    const pct2=tOrc>0?Math.min(100,Math.round(tGas/tOrc*100)):0;
+    h+=`<div class="setor-card" style="margin-bottom:10px">
+      <div class="setor-hdr">
+        <div>
+          <div class="setor-nome" style="text-transform:capitalize">${m.mes}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px">
+            Fechado em ${fd(m.fechadoEm)} por ${esc((gU(m.fechadoPor)||{nome:m.fechadoPor}).nome)}
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="toggleHistMes('hm_${m.mes.replace(/\s/g,'_')}')">
+          <i class="ti ti-chevron-down" aria-hidden="true"></i> Detalhar
+        </button>
+      </div>
+      <div class="setor-stats">
+        <div class="sstat"><div class="sstat-l">Orçamento</div><div class="sstat-v">${fm(tOrc)}</div></div>
+        <div class="sstat"><div class="sstat-l">Gasto total</div><div class="sstat-v warn">${fm(tGas)}</div></div>
+        <div class="sstat"><div class="sstat-l">Utilização</div><div class="sstat-v">${pct2}%</div></div>
+      </div>
+      <div class="bbar-bg"><div class="bbar" style="width:${pct2}%;background:${barC(pct2)}"></div></div>
+      <div id="hm_${m.mes.replace(/\s/g,'_')}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+        ${m.snapshot.map(s=>{
+          const p2=s.orcamento>0?Math.min(100,Math.round(s.gasto/s.orcamento*100)):0;
+          const disp=s.orcamento-s.gasto;
+          return `<div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px">
+              <span>${esc(s.nome)}</span>
+              <span style="font-size:12px;color:var(--text-2)">${fm(s.gasto)} / ${fm(s.orcamento)}</span>
+            </div>
+            <div class="bbar-bg" style="height:6px"><div class="bbar" style="width:${p2}%;background:${barC(p2)}"></div></div>
+            ${(s.movimentos||[]).length?`<div style="margin-top:6px">${(s.movimentos||[]).slice(-5).reverse().map(mv=>
+              `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;color:var(--text-2)">
+                <span>${esc(mv.desc)}</span>
+                <span style="font-weight:700;color:${mv.tipo==='saida'?'#791F1F':'#27500A'}">${mv.tipo==='saida'?'−':'+'} ${fm(mv.valor)}</span>
+              </div>`).join('')}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  return h;
+}
+
+function toggleHistMes(id) {
+  const el=document.getElementById(id); if(!el) return;
+  el.style.display=el.style.display==='none'?'block':'none';
 }
 
 // ── Google Drive – upload de anexo ───────────────────────────────────
@@ -556,7 +683,9 @@ function buildSidebar() {
       <div class="ni" id="nv_fin" onclick="showPage('fin')">
         <i class="ti ti-chart-pie" aria-hidden="true"></i><span>Verbas por setor</span></div>
       <div class="ni" id="nv_mov" onclick="showPage('mov')">
-        <i class="ti ti-arrows-exchange" aria-hidden="true"></i><span>Movimentações</span></div>`;
+        <i class="ti ti-arrows-exchange" aria-hidden="true"></i><span>Movimentações</span></div>
+      <div class="ni" id="nv_histfin" onclick="showPage('histfin')">
+        <i class="ti ti-history" aria-hidden="true"></i><span>Histórico mensal</span></div>`;
   } else {
     h+=`
       <div class="ngrp">Financeiro</div>
@@ -568,7 +697,7 @@ function buildSidebar() {
 
 function showPage(pg) {
   // Bloqueia páginas exclusivas de admin para outros roles
-  const adminOnly = ['todos','relatorios','fin','mov'];
+  const adminOnly = ['todos','relatorios','fin','mov','histfin'];
   if(adminOnly.includes(pg) && CU.role !== 'admin') { pg = 'dashboard'; }
 
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
@@ -582,6 +711,7 @@ function showPage(pg) {
   else if(pg==='relatorios') { c.innerHTML=renderRelatorios(); initCharts(); }
   else if(pg==='fin')        c.innerHTML=renderFin();
   else if(pg==='mov')        c.innerHTML=renderMov();
+  else if(pg==='histfin')    c.innerHTML=renderHistoricoPage();
   else if(pg==='meuorc')     c.innerHTML=renderMeuOrc();
 }
 
@@ -847,7 +977,17 @@ function drawCharts(dias,catCount,stCount) {
 function renderFin() {
   const tOrc=S.setores.reduce((a,s)=>a+s.orcamento,0);
   const tGas=S.setores.reduce((a,s)=>a+s.gasto,0);
-  let h=`<div class="ph"><div class="ph-title">Verbas por setor</div></div>
+  // Calcula o mês atual para mostrar no cabeçalho
+  const mesAtual = new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  let h=`<div class="ph">
+    <div>
+      <div class="ph-title">Verbas por setor</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:2px;text-transform:capitalize">${mesAtual}</div>
+    </div>
+    <button class="btn btn-warning" onclick="fecharMes()">
+      <i class="ti ti-lock-open" aria-hidden="true"></i> Fechar mês
+    </button>
+  </div>
   <div class="fin-summary">
     <div class="fin-mc"><div class="fin-mc-l">Orçamento total</div><div class="fin-mc-v">${fm(tOrc)}</div></div>
     <div class="fin-mc" style="background:var(--danger-bg)"><div class="fin-mc-l" style="color:var(--danger)">Total gasto</div><div class="fin-mc-v" style="color:var(--danger)">${fm(tGas)}</div></div>
@@ -876,6 +1016,17 @@ function renderFin() {
         </div>`).join('')}</div>`:''}
     </div>`;
   });
+  // Histórico de meses anteriores
+  h += renderHistoricoOrcamentos();
+  return h;
+}
+
+function renderHistoricoPage() {
+  let h=`<div class="ph"><div class="ph-title">Histórico mensal de verbas</div></div>`;
+  if(!S.historico.length){
+    return h+`<div class="empty"><i class="ti ti-history" aria-hidden="true"></i><p>Nenhum mês fechado ainda.</p><p style="font-size:12px;color:var(--text-3)">Use "Fechar mês" na página de Verbas por setor ao final de cada mês.</p></div>`;
+  }
+  h+=renderHistoricoOrcamentos();
   return h;
 }
 
