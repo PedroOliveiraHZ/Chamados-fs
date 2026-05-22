@@ -1,17 +1,6 @@
-// =====================================================================
-//  config.js  —  Fortsun Sistema de Chamados
-//  Mantenha este arquivo fora do controle de versão público
-// =====================================================================
-
 const CONFIG = {
-
   GOOGLE_CLIENT_ID: '969773095532-0l37bsenra6dop0v73ejr4kvp3dvmi9j.apps.googleusercontent.com',
-
   SPREADSHEET_ID: '1x-dNniKp9o-WeFeZoMAKMXeoM0jv2-zQPM4qoIsuBQA',
-
-  // Pasta do Google Drive onde os anexos serão salvos (crie e cole o ID aqui)
-  // Exemplo: https://drive.google.com/drive/folders/XXXXXXXXXXX
-  DRIVE_FOLDER_ID: '19Mbf3Cy_a2H0YV8b-D7KpMK_jkhvUtpY',
 
   ALLOWED_USERS: [
     // ADMIN
@@ -32,6 +21,7 @@ const CONFIG = {
 
     // OPERAÇÕES
     { email: 'daniel@fortsunbrasil.com',            nome: 'Daniel',          role: 'user',      setor: 's5', ini: 'DL' },
+     { email: 'thiago@fortsunbrasil.com',            nome: 'Thiago',          role: 'user',      setor: 's5', ini: 'Th' },
 
     // DP
     { email: 'rayssa@fortsunbrasil.com',            nome: 'Rayssa',          role: 'user',      setor: 's6', ini: 'RS' },

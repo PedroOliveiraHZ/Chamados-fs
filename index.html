@@ -127,10 +127,19 @@
           <option>Urgente</option>
         </select>
       </div>
+      <div class="fg">
+        <label class="fl">Anexos (opcional)</label>
+        <label class="anexo-dropzone" for="nAnexos">
+          <i class="ti ti-upload" aria-hidden="true"></i>
+          <span id="nAnexosLabel">Clique ou arraste arquivos aqui</span>
+        </label>
+        <input id="nAnexos" type="file" multiple style="display:none"
+               onchange="updateAnexosLabel(this)"/>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeNew()">Cancelar</button>
-      <button class="btn btn-primary" onclick="submitTicket()">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitTicket()">
         <i class="ti ti-send" aria-hidden="true"></i> Enviar chamado
       </button>
     </div>

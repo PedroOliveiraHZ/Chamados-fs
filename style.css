@@ -291,6 +291,11 @@ textarea { min-height: 90px; resize: vertical; }
 .sync-bar.ok  { background: var(--success); }
 .sync-bar.err { background: var(--danger); }
 
+/* ── Dropzone de anexo no novo chamado ─────────────────────────────── */
+.anexo-dropzone      { display:flex; align-items:center; gap:10px; border:2px dashed var(--border); border-radius:var(--radius); padding:14px 16px; cursor:pointer; color:var(--text-2); font-size:13px; transition:all .15s; background:var(--bg); }
+.anexo-dropzone:hover{ border-color:var(--sky); background:#F0F7FF; color:var(--navy); }
+.anexo-dropzone .ti  { font-size:20px; color:var(--sky); flex-shrink:0; }
+
 /* ── Scrollbar ─────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

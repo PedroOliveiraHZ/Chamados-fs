@@ -557,6 +557,10 @@ function buildSidebar() {
 }
 
 function showPage(pg) {
+  // Bloqueia páginas exclusivas de admin para outros roles
+  const adminOnly = ['todos','relatorios','fin','mov'];
+  if(adminOnly.includes(pg) && CU.role !== 'admin') { pg = 'dashboard'; }
+
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   const el=document.getElementById('nv_'+pg); if(el) el.classList.add('active');
   const c=document.getElementById('content');
@@ -1095,6 +1099,7 @@ function openTicket(id) {
   document.getElementById('ovTicket').classList.add('open');
   const cw=document.getElementById('chatW');
   if(cw) cw.scrollTop=cw.scrollHeight;
+  startChatPolling(id);
 }
 
 // ── Upload de anexo (aba anexos do chamado) ───────────────────────────
@@ -1271,6 +1276,58 @@ function refreshChatInModal(t) {
   chatW.scrollTop = chatW.scrollHeight;
 }
 
+// ── Polling automático do chat ────────────────────────────────────
+let _chatPollInterval = null;
+let _chatPollTid      = null;
+
+function startChatPolling(tid) {
+  stopChatPolling();
+  _chatPollTid = tid;
+  _chatPollInterval = setInterval(async () => {
+    // Só roda se o modal estiver aberto
+    if (!document.getElementById('ovTicket').classList.contains('open')) {
+      stopChatPolling(); return;
+    }
+    try {
+      const rows = await sheetGet('tickets!A2:Z9999');
+      const updatedTickets = rows.map(row => {
+        const t = {};
+        T_HDR.forEach((h, i) => { t[h] = row[i] !== undefined ? row[i] : ''; });
+        t.id       = Number(t.id);
+        t.chat     = pj(t.chat) || [];
+        t.anexos   = pj(t.anexos) || [];
+        t.steps    = pj(t.steps) || [];
+        t.camposExtra = pj(t.camposExtra) || {};
+        t.valor    = Number(t.valor) || 0;
+        t.criadoEm = Number(t.criadoEm) || 0;
+        t.aceitoEm = Number(t.aceitoEm) || 0;
+        t.csat     = Number(t.csat) || 0;
+        return t;
+      }).filter(t => t.id > 0);
+
+      const fresh = updatedTickets.find(x => x.id == _chatPollTid);
+      if (!fresh) return;
+
+      // Atualiza S.tickets em memória
+      const idx = S.tickets.findIndex(x => x.id == _chatPollTid);
+      if (idx >= 0) S.tickets[idx] = fresh;
+
+      // Atualiza chat na tela se tiver novas mensagens
+      const chatW = document.getElementById('chatW');
+      if (chatW && fresh.chat.length > (chatW.querySelectorAll('.cm').length)) {
+        refreshChatInModal(fresh);
+      }
+    } catch(e) {
+      // silencioso — polling não deve quebrar a UX
+    }
+  }, 15000); // a cada 15 segundos
+}
+
+function stopChatPolling() {
+  if (_chatPollInterval) { clearInterval(_chatPollInterval); _chatPollInterval = null; }
+  _chatPollTid = null;
+}
+
 // ── Novo chamado ──────────────────────────────────────────────────────
 function onDestSetorChange() {
   const cat=document.getElementById('nCatSetor').value;
@@ -1362,6 +1419,23 @@ async function submitTicket(){
     chat:[],anexos:[],aceitoEm:0,aceitoPor:'',
     slaResposta:slaConf.resposta,slaResolucao:slaConf.resolucao,csat:0,
   };
+
+  // Upload de anexos enviados junto ao chamado
+  const fileInput = document.getElementById('nAnexos');
+  if(fileInput && fileInput.files.length > 0) {
+    const submitBtn = document.getElementById('submitBtn');
+    if(submitBtn) { submitBtn.disabled=true; submitBtn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Enviando...'; }
+    sync('Enviando anexos...','loading');
+    for(const file of Array.from(fileInput.files)){
+      try{
+        const driveFile = await uploadFileToDrive(file);
+        ticket.anexos.push(driveFile);
+      }catch(e){
+        console.warn('Falha no upload de anexo:', e.message);
+      }
+    }
+  }
+
   S.tickets.push(ticket);
   await saveTickets();
   closeNew();
@@ -1415,7 +1489,18 @@ async function saveVerba(){
 }
 
 // ── Fechar modais ─────────────────────────────────────────────────────
-function closeMod()   { document.getElementById('ovTicket').classList.remove('open'); }
+function updateAnexosLabel(input) {
+  const label = document.getElementById('nAnexosLabel');
+  if(!label) return;
+  const count = input.files.length;
+  label.textContent = count === 0
+    ? 'Clique ou arraste arquivos aqui'
+    : count === 1
+      ? input.files[0].name
+      : `${count} arquivos selecionados`;
+}
+
+function closeMod()   { document.getElementById('ovTicket').classList.remove('open'); stopChatPolling(); }
 function closeNew()   { document.getElementById('ovNew').classList.remove('open'); }
 function closeVerba() { document.getElementById('ovVerba').classList.remove('open'); editSetorId=null; }
 
