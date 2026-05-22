@@ -178,18 +178,50 @@ function maybeInitGIS() {
       showLoginError(msg); setLoading(false);
     },
   });
-  const btnContainer = document.getElementById('gSignInBtn');
-  if(btnContainer) {
-    btnContainer.innerHTML = `
-      <button onclick="doGoogleLogin()" style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-radius:8px;border:1px solid #dadce0;background:#fff;cursor:pointer;font-size:14px;font-family:inherit;color:#3c4043;font-weight:500;width:100%;justify-content:center;">
-        <svg width="18" height="18" viewBox="0 0 18 18">
-          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-          <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.174 0 7.548 0 9s.348 2.826.957 4.039l3.007-2.332z"/>
-          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
-        </svg>
-        Entrar com Google
-      </button>`;
+  // Tenta restaurar sessão antes de mostrar o botão
+  tryRestoreSession().then(restored => {
+    if (restored) return;
+    const btnContainer = document.getElementById('gSignInBtn');
+    if(btnContainer) {
+      btnContainer.innerHTML = `
+        <button onclick="doGoogleLogin()" style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-radius:8px;border:1px solid #dadce0;background:#fff;cursor:pointer;font-size:14px;font-family:inherit;color:#3c4043;font-weight:500;width:100%;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 18 18">
+            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+            <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.174 0 7.548 0 9s.348 2.826.957 4.039l3.007-2.332z"/>
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
+          </svg>
+          Entrar com Google
+        </button>`;
+    }
+  });
+}
+
+// Restaura sessão salva no sessionStorage sem abrir popup
+async function tryRestoreSession() {
+  try {
+    const token   = sessionStorage.getItem('fs_token');
+    const exp     = Number(sessionStorage.getItem('fs_token_exp') || 0);
+    const userStr = sessionStorage.getItem('fs_user');
+    if (!token || !userStr || Date.now() > exp - 60000) return false;
+
+    const savedUser = JSON.parse(userStr);
+    const userCfg   = gU(savedUser.email);
+    if (!userCfg) return false;
+
+    gapi.client.setToken({ access_token: token });
+    CU = { ...userCfg, ...savedUser };
+
+    setLoading(true);
+    await setupSheets();
+    await loadFromSheets();
+    launchApp();
+    setLoading(false);
+    return true;
+  } catch(e) {
+    console.warn('[Session] Restauração falhou:', e);
+    ['fs_token','fs_token_exp','fs_user'].forEach(k => sessionStorage.removeItem(k));
+    return false;
   }
 }
 
@@ -213,6 +245,14 @@ async function onTokenReceived(resp) {
     const userCfg  = gU(email);
     if(!userCfg) { showLoginError(`Acesso não autorizado para ${email}. Contate o administrador.`); setLoading(false); return; }
     CU = { ...userCfg, email, picture: userInfo.picture||'', googleName: userInfo.name||userCfg.nome };
+
+    // Persiste sessão (sobrevive ao F5 dentro da mesma aba/sessão do browser)
+    const expiresMs = Date.now() + ((resp.expires_in || 3599) * 1000);
+    sessionStorage.setItem('fs_token',     resp.access_token);
+    sessionStorage.setItem('fs_token_exp', String(expiresMs));
+    sessionStorage.setItem('fs_user',      JSON.stringify(CU));
+    gapi.client.setToken({ access_token: resp.access_token });
+
     await setupSheets();
     await loadFromSheets();
     launchApp();
@@ -247,6 +287,7 @@ function renderTopbar() {
 }
 
 function logout() {
+  ['fs_token','fs_token_exp','fs_user'].forEach(k => sessionStorage.removeItem(k));
   try{const token=gapi.client.getToken();if(token){google.accounts.oauth2.revoke(token.access_token,()=>{});gapi.client.setToken(null);}}catch(e){}
   CU=null; S={tickets:[],setores:[]};
   document.getElementById('appView').style.display='none';
@@ -411,18 +452,33 @@ async function uploadFileToDrive(file) {
   const data = await resp.json();
   console.log('[Drive] Upload OK:', data);
 
-  // Tornar público para visualização
+  // Pequena pausa antes de aplicar permissões (arquivo precisa estar indexado)
+  await delay(1200);
+
+  // Tornar público para visualização (não-crítico: falha silenciosa)
   try {
-    await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`, {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + token.access_token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-    });
+    const tk = gapi.client.getToken();
+    const permResp = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${data.id}/permissions`,
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + tk.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+      }
+    );
+    if (!permResp.ok) {
+      const permErr = await permResp.text();
+      console.warn('[Drive] Permissão pública falhou (arquivo ainda acessível via domínio):', permErr);
+    } else {
+      console.log('[Drive] Permissão pública aplicada.');
+    }
   } catch(e) {
-    console.warn('[Drive] Não foi possível tornar público — link pode exigir login:', e);
+    console.warn('[Drive] Erro ao aplicar permissão:', e);
   }
 
-  return { id: data.id, nome: data.name, url: data.webViewLink, tipo: data.mimeType };
+  // URL de visualização direta como fallback
+  const viewUrl = data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`;
+  return { id: data.id, nome: data.name, url: viewUrl, tipo: data.mimeType };
 }
 
 async function checkTokenHasDriveScope(accessToken) {
@@ -969,7 +1025,7 @@ function openTicket(id) {
     });
     body+=`</div>`;
   } else {
-    body+=`<div style="font-size:13px;color:var(--text-3);margin-bottom:12px">Nenhum anexo.</div>`;
+    body+=`<div style="font-size:13px;color:var(--text-3);margin-bottom:12px" data-no-anexo="1">Nenhum anexo.</div>`;
   }
   if(!enc){
     body+=`<div class="anexo-upload">
@@ -1045,16 +1101,32 @@ function openTicket(id) {
 async function uploadAnexo(tid, input) {
   const t=S.tickets.find(x=>x.id==tid); if(!t) return;
   const statusEl=document.getElementById('uploadStatus_'+tid);
-  if(statusEl) statusEl.textContent='Enviando...';
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  if(statusEl) statusEl.textContent='Enviando ' + files.length + ' arquivo(s)...';
   try{
-    for(const file of Array.from(input.files)){
+    for(const file of files){
       const driveFile=await uploadFileToDrive(file);
       if(!t.anexos) t.anexos=[];
       t.anexos.push(driveFile);
+      // Adiciona o item na lista de anexos sem fechar o modal
+      let anexosList = document.querySelector('.anexos-list');
+      if(!anexosList) {
+        // Cria a lista se não existir ainda
+        const sec = document.createElement('div');
+        sec.className = 'anexos-list';
+        const noAnexo = document.querySelector('[data-no-anexo]');
+        if(noAnexo) noAnexo.replaceWith(sec);
+        anexosList = sec;
+      }
+      const isImg = driveFile.tipo && driveFile.tipo.startsWith('image/');
+      const a = document.createElement('a');
+      a.className = 'anexo-item'; a.href = driveFile.url; a.target = '_blank'; a.rel = 'noopener';
+      a.innerHTML = `<i class="ti ${isImg?'ti-photo':'ti-file'}" aria-hidden="true"></i><span>${esc(driveFile.nome)}</span><i class="ti ti-external-link" aria-hidden="true" style="font-size:11px;opacity:.6"></i>`;
+      anexosList.appendChild(a);
     }
     await saveTickets();
-    if(statusEl) statusEl.textContent='Enviado!';
-    setTimeout(()=>openTicket(tid),800);
+    if(statusEl) { statusEl.textContent = 'Enviado com sucesso!'; setTimeout(()=>{ if(statusEl) statusEl.textContent=''; }, 3000); }
   }catch(e){
     if(statusEl) statusEl.textContent='Erro: '+e.message;
     console.error(e);
@@ -1070,8 +1142,16 @@ async function sendChatFile(tid, input) {
     const driveFile=await uploadFileToDrive(file);
     if(!t.chat) t.chat=[];
     t.chat.push({uid:CU.email,autor:CU.nome,txt:'',fileUrl:driveFile.url,fileName:driveFile.nome,ts:Date.now()});
+    refreshChatInModal(t);
     await saveTickets();
-    openTicket(tid);
+    // Atualiza também a lista de anexos sem fechar modal
+    const anexosList = document.querySelector('.anexos-list');
+    if(anexosList) {
+      const a = document.createElement('a');
+      a.className = 'anexo-item'; a.href = driveFile.url; a.target = '_blank'; a.rel = 'noopener';
+      a.innerHTML = `<i class="ti ti-paperclip" aria-hidden="true"></i><span>${esc(driveFile.nome)}</span>`;
+      anexosList.appendChild(a);
+    }
   }catch(e){
     sync('Erro no upload: '+e.message,'err');
     console.error(e);
@@ -1167,8 +1247,28 @@ async function sendChat(tid) {
   if(t.status==='Encerrado'||t.status==='Recusado') return;
   if(!t.chat) t.chat=[];
   t.chat.push({uid:CU.email,autor:CU.nome,txt,ts:Date.now()});
+  input.value='';
+  // Atualiza o chat na tela imediatamente sem fechar o modal
+  refreshChatInModal(t);
   await saveTickets();
-  input.value=''; openTicket(tid);
+}
+
+// Atualiza só o chat dentro do modal aberto (sem fechar)
+function refreshChatInModal(t) {
+  const chatW = document.getElementById('chatW');
+  if (!chatW) return;
+  chatW.innerHTML = '';
+  (t.chat || []).forEach(m => {
+    const mine = m.uid.toLowerCase() === CU.email.toLowerCase();
+    const div  = document.createElement('div');
+    div.className = 'cm ' + (mine ? 'mine' : 'other');
+    let inner = `<div class="ca">${esc(m.autor)} · ${fd(m.ts)}</div>`;
+    if (m.fileUrl) inner += `<a class="chat-file-link" href="${m.fileUrl}" target="_blank" rel="noopener"><i class="ti ti-paperclip" aria-hidden="true"></i> ${esc(m.fileName||'Arquivo')}</a>`;
+    if (m.txt)     inner += `<div>${esc(m.txt)}</div>`;
+    div.innerHTML = inner;
+    chatW.appendChild(div);
+  });
+  chatW.scrollTop = chatW.scrollHeight;
 }
 
 // ── Novo chamado ──────────────────────────────────────────────────────
