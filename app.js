@@ -508,6 +508,7 @@ function sync(msg,type) {
 
 // ── Sidebar e navegação ───────────────────────────────────────────────
 function pendingForMe() {
+  // Tickets onde o passo atual me aguarda
   return S.tickets.filter(t=>{
     const c=curStep(t); if(!c) return false;
     if(c.targetType==='user'  && c.targetId.toLowerCase()===CU.email.toLowerCase()) return true;
@@ -516,8 +517,17 @@ function pendingForMe() {
   });
 }
 
+function involvedInTicket(t) {
+  // Participei da trilha (criei, fui destinatário em algum step, ou encaminhei)
+  const myEmail = CU.email.toLowerCase();
+  if(t.userId.toLowerCase() === myEmail) return true;
+  if((t.aceitoPor||'').toLowerCase() === myEmail) return true;
+  return (t.steps||[]).some(s => s.targetId.toLowerCase() === myEmail);
+}
+
 function acceptedByMe() {
-  return S.tickets.filter(t=>(t.aceitoPor||'').toLowerCase()===CU.email.toLowerCase());
+  // Tickets que já passaram por mim (aprovei, encaminhei ou participei)
+  return S.tickets.filter(t => involvedInTicket(t));
 }
 
 function buildSidebar() {
@@ -658,8 +668,8 @@ function renderInbox() {
 // ── Chamados Aceitos ──────────────────────────────────────────────────
 function renderAceitos() {
   const ts=acceptedByMe().slice().reverse();
-  let h=`<div class="ph"><div class="ph-title">Chamados aceitos / atribuídos a mim</div></div><div class="tlist">`;
-  if(!ts.length) h+=`<div class="empty"><i class="ti ti-checks" aria-hidden="true"></i><p>Você ainda não aceitou nenhum chamado.</p><p style="font-size:12px;color:var(--text-3)">Quando um chamado for aprovado por você, ele aparecerá aqui para acompanhamento.</p></div>`;
+  let h=`<div class="ph"><div class="ph-title">Chamados que participei</div></div><div class="tlist">`;
+  if(!ts.length) h+=`<div class="empty"><i class="ti ti-checks" aria-hidden="true"></i><p>Nenhum chamado ainda.</p><p style="font-size:12px;color:var(--text-3)">Chamados que você criou, encaminhou ou aprovou aparecem aqui.</p></div>`;
   else ts.forEach(t=>{h+=tCard(t);});
   return h+'</div>';
 }
@@ -1283,44 +1293,54 @@ let _chatPollTid      = null;
 function startChatPolling(tid) {
   stopChatPolling();
   _chatPollTid = tid;
+
+  // Guarda o timestamp da última mensagem conhecida para detectar novidades
+  const localTicket = S.tickets.find(x => x.id == tid);
+  let lastKnownMsgTs = localTicket && localTicket.chat && localTicket.chat.length
+    ? Math.max(...localTicket.chat.map(m => m.ts || 0))
+    : 0;
+
   _chatPollInterval = setInterval(async () => {
-    // Só roda se o modal estiver aberto
     if (!document.getElementById('ovTicket').classList.contains('open')) {
       stopChatPolling(); return;
     }
     try {
+      // Busca todas as linhas mas só processa a do ticket aberto
       const rows = await sheetGet('tickets!A2:Z9999');
-      const updatedTickets = rows.map(row => {
-        const t = {};
-        T_HDR.forEach((h, i) => { t[h] = row[i] !== undefined ? row[i] : ''; });
-        t.id       = Number(t.id);
-        t.chat     = pj(t.chat) || [];
-        t.anexos   = pj(t.anexos) || [];
-        t.steps    = pj(t.steps) || [];
-        t.camposExtra = pj(t.camposExtra) || {};
-        t.valor    = Number(t.valor) || 0;
-        t.criadoEm = Number(t.criadoEm) || 0;
-        t.aceitoEm = Number(t.aceitoEm) || 0;
-        t.csat     = Number(t.csat) || 0;
-        return t;
-      }).filter(t => t.id > 0);
+      const myRow = rows.find(row => Number(row[0]) === Number(_chatPollTid));
+      if (!myRow) return;
 
-      const fresh = updatedTickets.find(x => x.id == _chatPollTid);
-      if (!fresh) return;
+      const fresh = {};
+      T_HDR.forEach((h, i) => { fresh[h] = myRow[i] !== undefined ? myRow[i] : ''; });
+      fresh.id        = Number(fresh.id);
+      fresh.chat      = pj(fresh.chat)      || [];
+      fresh.anexos    = pj(fresh.anexos)    || [];
+      fresh.steps     = pj(fresh.steps)     || [];
+      fresh.camposExtra = pj(fresh.camposExtra) || {};
+      fresh.valor     = Number(fresh.valor)     || 0;
+      fresh.criadoEm  = Number(fresh.criadoEm)  || 0;
+      fresh.aceitoEm  = Number(fresh.aceitoEm)  || 0;
+      fresh.csat      = Number(fresh.csat)      || 0;
 
-      // Atualiza S.tickets em memória
-      const idx = S.tickets.findIndex(x => x.id == _chatPollTid);
-      if (idx >= 0) S.tickets[idx] = fresh;
+      // Detecta mensagens novas pelo timestamp
+      const newestTs = fresh.chat.length
+        ? Math.max(...fresh.chat.map(m => m.ts || 0))
+        : 0;
 
-      // Atualiza chat na tela se tiver novas mensagens
-      const chatW = document.getElementById('chatW');
-      if (chatW && fresh.chat.length > (chatW.querySelectorAll('.cm').length)) {
+      if (newestTs > lastKnownMsgTs) {
+        lastKnownMsgTs = newestTs;
+        // Atualiza S.tickets em memória
+        const idx = S.tickets.findIndex(x => x.id == _chatPollTid);
+        if (idx >= 0) S.tickets[idx] = fresh;
+        // Redesenha o chat
         refreshChatInModal(fresh);
+        // Atualiza badge do sidebar silenciosamente
+        buildSidebar();
       }
     } catch(e) {
-      // silencioso — polling não deve quebrar a UX
+      // silencioso
     }
-  }, 15000); // a cada 15 segundos
+  }, 8000); // a cada 8 segundos — mais responsivo
 }
 
 function stopChatPolling() {
