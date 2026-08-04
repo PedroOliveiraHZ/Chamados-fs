@@ -9,61 +9,116 @@
 </head>
 <body>
 
-<!-- ── LOGIN ─────────────────────────────────────────────────── -->
-<div id="loginView" class="login-view">
-  <div class="login-wrap">
-    <div class="login-box">
-      <div class="login-logo">
-        <div class="logo-circle">
-          <img src="logo.png" alt="Fortsun" class="logo-img"/>
-        </div>
-      </div>
-      <div class="login-title">Sistema de Chamados</div>
-      <div class="login-sub">Entre com sua conta corporativa</div>
-      <div id="gSignInBtn" style="display:flex;justify-content:center;margin:24px 0 16px"></div>
-      <div id="loginError" class="login-error" style="display:none">
-        <i class="ti ti-alert-circle" aria-hidden="true"></i>
-        <span id="loginErrorMsg">Acesso negado</span>
-      </div>
-      <div id="loginLoading" style="display:none;text-align:center;color:var(--text-2);font-size:13px;padding:10px">
-        <i class="ti ti-loader" aria-hidden="true" style="animation:spin 1s linear infinite"></i>
-        Carregando...
-      </div>
-      <p class="login-footer">
-        Apenas contas <strong>@fortsunbrasil.com</strong> autorizadas têm acesso.
-      </p>
+<!-- ── TOPBAR ────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">
+      <div class="logo-circle-sm"><img src="logo.png" alt="Fortsun" class="logo-img"/></div>
+      <span class="topbar-brand">Fortsun</span>
     </div>
   </div>
-</div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="btnNav" onclick="toggleView()">
+      <i class="ti ti-lock" aria-hidden="true"></i> <span id="btnNavLabel">Painel</span>
+    </button>
+  </div>
+</header>
 
-<!-- ── APP ───────────────────────────────────────────────────── -->
-<div id="appView" class="app-view" style="display:none">
-  <header class="topbar">
-    <div class="topbar-left">
-      <div class="topbar-logo">
-        <div class="logo-circle-sm">
-          <img src="logo.png" alt="Fortsun" class="logo-img"/>
-        </div>
-        <span class="topbar-brand">Fortsun</span>
+<div class="main-layout">
+  <main class="content" id="content" style="width:100%;max-width:760px;margin:0 auto;">
+
+    <!-- ── VIEW: ABRIR CHAMADO (pública, padrão) ─────────────────── -->
+    <section id="viewNovo">
+      <div class="ph"><div class="ph-title">Abrir chamado</div></div>
+
+      <div class="fg">
+        <label class="fl">Quem é você</label>
+        <select id="nQuem" onchange="onQuemChange()">
+          <option value="">Selecione seu nome...</option>
+        </select>
       </div>
-      <span class="pill" id="topSetor"></span>
-    </div>
-    <div class="topbar-right">
-      <img id="topPhoto" src="" alt="" class="av-photo" style="display:none"/>
-      <div class="av" id="topAv"></div>
-      <span id="topNm"></span>
-      <button class="btn btn-sm" onclick="logout()">
-        <i class="ti ti-logout" aria-hidden="true"></i> Sair
+
+      <div class="fg">
+        <label class="fl">Setor</label>
+        <select id="nSetor"></select>
+      </div>
+
+      <div class="fg">
+        <label class="fl">Título</label>
+        <input id="nTit" type="text" placeholder="Descreva brevemente a solicitação"/>
+      </div>
+
+      <div class="fg">
+        <label class="fl">Descrição detalhada</label>
+        <textarea id="nDesc" placeholder="Explique o que precisa e por quê..."></textarea>
+      </div>
+
+      <div class="fg">
+        <label class="fl">Prioridade</label>
+        <select id="nPrio"></select>
+      </div>
+
+      <div class="fg">
+        <label class="fl">Anexos (opcional)</label>
+        <label class="anexo-dropzone" for="nAnexos">
+          <i class="ti ti-upload" aria-hidden="true"></i>
+          <span id="nAnexosLabel">Clique ou arraste arquivos aqui</span>
+        </label>
+        <input id="nAnexos" type="file" multiple style="display:none" onchange="updateAnexosLabel(this)"/>
+      </div>
+
+      <button class="btn btn-primary" id="submitBtn" onclick="submitTicket()" style="width:100%;justify-content:center;padding:12px;">
+        <i class="ti ti-send" aria-hidden="true"></i> Enviar chamado
       </button>
-    </div>
-  </header>
-  <div class="main-layout">
-    <nav class="sidebar" id="sidebar"></nav>
-    <main class="content" id="content"></main>
-  </div>
+      <div id="novoMsg" style="margin-top:12px"></div>
+    </section>
+
+    <!-- ── VIEW: LOGIN DO PAINEL ─────────────────────────────────── -->
+    <section id="viewLogin" style="display:none;max-width:380px;margin:60px auto 0;">
+      <div class="login-box">
+        <div class="login-logo"><div class="logo-circle"><img src="logo.png" alt="Fortsun" class="logo-img"/></div></div>
+        <div class="login-title">Painel de chamados</div>
+        <div class="login-sub">Acesso restrito — Henrique / Rafael</div>
+        <div class="fg" style="text-align:left;margin-top:20px">
+          <label class="fl">Senha de acesso</label>
+          <input id="pSenha" type="password" placeholder="Senha do painel" onkeydown="if(event.key==='Enter')doLoginPainel()"/>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="doLoginPainel()">
+          <i class="ti ti-login" aria-hidden="true"></i> Entrar
+        </button>
+        <div id="loginError" class="login-error" style="display:none;margin-top:14px">
+          <i class="ti ti-alert-circle" aria-hidden="true"></i>
+          <span id="loginErrorMsg">Senha incorreta</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── VIEW: PAINEL (gerenciamento) ──────────────────────────── -->
+    <section id="viewPainel" style="display:none;max-width:100%;">
+      <div class="ph">
+        <div class="ph-title">Painel de chamados</div>
+        <button class="btn btn-sm" onclick="reloadPainel()"><i class="ti ti-refresh"></i> Atualizar</button>
+      </div>
+
+      <div class="mcrow" id="mcrow"></div>
+
+      <div class="filter-bar">
+        <select id="fStatus" onchange="renderPainel()">
+          <option value="">Todos os status</option>
+        </select>
+        <select id="fSetor" onchange="renderPainel()">
+          <option value="">Todos os setores</option>
+        </select>
+        <input id="fBusca" type="text" placeholder="Buscar por título..." oninput="renderPainel()"/>
+      </div>
+
+      <div class="tlist" id="tlist"></div>
+    </section>
+
+  </main>
 </div>
 
-<!-- ── MODAL: CHAMADO ────────────────────────────────────────── -->
+<!-- ── MODAL: DETALHE DO CHAMADO ─────────────────────────────────── -->
 <div class="overlay" id="ovTicket">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -75,100 +130,9 @@
   </div>
 </div>
 
-<!-- ── MODAL: NOVO CHAMADO ───────────────────────────────────── -->
-<div class="overlay" id="ovNew">
-  <div class="modal modal-lg">
-    <div class="modal-header">
-      <h3>Abrir novo chamado</h3>
-      <button class="btn btn-icon" onclick="closeNew()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="fg">
-        <label class="fl">Título</label>
-        <input id="nTit" type="text" placeholder="Descreva brevemente a solicitação"/>
-      </div>
-      <div class="fg">
-        <label class="fl">Setor responsável:</label>
-        <select id="nCatSetor" onchange="onDestSetorChange()">
-          <option value="">Selecione o setor:</option>
-          <option value="Financeiro">Financeiro</option>
-          <option value="Dados/TI">Dados / TI</option>
-          <option value="RH">RH</option>
-          <option value="DP">DP</option>
-          <option value="Marketing">Marketing</option>
-          <option value="Compliance/Logística">Compliance / Logística</option>
-        </select>
-      </div>
-      <div id="subcatArea" style="display:none">
-        <div class="fg">
-          <label class="fl">Tipo de solicitação:</label>
-          <div class="subcat-grid" id="subcatGrid"></div>
-        </div>
-        <div id="extraFields"></div>
-      </div>
-      <div class="fg">
-        <label class="fl">Encaminhar para pessoa responsável:</label>
-        <select id="nDest"></select>
-      </div>
-      <div class="fg">
-        <label class="fl">Valor solicitado (R$) — deixe 0 caso não haja custo</label>
-        <input id="nVal" type="number" value="0" min="0" step="0.01"/>
-      </div>
-      <div class="fg">
-        <label class="fl">Descrição detalhada:</label>
-        <textarea id="nDesc" placeholder="Explique o que precisa e por quê..."></textarea>
-      </div>
-      <div class="fg">
-        <label class="fl">Prioridade:</label>
-        <select id="nPrio">
-          <option selected>Baixa</option>
-          <option>Média</option>
-          <option>Alta</option>
-          <option>Urgente</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label class="fl">Anexos (opcional)</label>
-        <label class="anexo-dropzone" for="nAnexos">
-          <i class="ti ti-upload" aria-hidden="true"></i>
-          <span id="nAnexosLabel">Clique ou arraste arquivos aqui</span>
-        </label>
-        <input id="nAnexos" type="file" multiple style="display:none"
-               onchange="updateAnexosLabel(this)"/>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeNew()">Cancelar</button>
-      <button class="btn btn-primary" id="submitBtn" onclick="submitTicket()">
-        <i class="ti ti-send" aria-hidden="true"></i> Enviar chamado
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ── MODAL: EDITAR VERBA ───────────────────────────────────── -->
-<div class="overlay" id="ovVerba">
-  <div class="modal modal-sm">
-    <div class="modal-header">
-      <h3>Editar verba do setor</h3>
-      <button class="btn btn-icon" onclick="closeVerba()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body" id="vBody"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeVerba()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveVerba()">
-        <i class="ti ti-check" aria-hidden="true"></i> Salvar
-      </button>
-    </div>
-  </div>
-</div>
+<div class="sync-bar" id="syncBar" style="display:none"></div>
 
 <script src="config.js"></script>
 <script src="app.js"></script>
-<script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
-<script src="https://accounts.google.com/gsi/client" async defer onload="onGISLoad()"></script>
-<style>
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
 </body>
 </html>

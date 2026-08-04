@@ -312,3 +312,5 @@ textarea { min-height: 90px; resize: vertical; }
   .fin-summary  { flex-direction: column; }
   .mcrow        { gap: 8px; }
 }
+/* ── Loader spin (usado em botões/estado de carregamento) ───────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
