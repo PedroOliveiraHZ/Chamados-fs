@@ -4,9 +4,11 @@
 
 /* ── Variáveis ─────────────────────────────────────────────────────── */
 :root {
-  --navy:       #1B3A6B;
-  --navy-l:     #2A4F8A;
-  --sky:        #3B82F6;
+  --navy:       #3D398F;
+  --navy-l:     #254E97;
+  --sky:        #188D91;
+  --purple:     #502C87;
+  --teal:       #226996;
   --bg:         #F4F6FA;
   --surface:    #FFFFFF;
   --border:     #DDE3EC;
@@ -34,7 +36,7 @@ a:hover { text-decoration: underline; }
 input, select, textarea, button { font-family: inherit; font-size: 14px; }
 
 /* ── Login ─────────────────────────────────────────────────────────── */
-.login-view { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1B3A6B 0%, #2563EB 100%); }
+.login-view { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--purple) 0%, var(--sky) 100%); }
 .login-wrap  { width: 100%; max-width: 420px; padding: 16px; }
 .login-box   { background: var(--surface); border-radius: 16px; padding: 40px 36px; box-shadow: var(--shadow-lg); text-align: center; }
 .login-logo  { display: flex; justify-content: center; margin-bottom: 20px; }
@@ -47,7 +49,7 @@ input, select, textarea, button { font-family: inherit; font-size: 14px; }
 
 /* ── App layout ────────────────────────────────────────────────────── */
 .app-view     { display: flex; flex-direction: column; height: 100vh; }
-.topbar       { height: var(--topbar-h); background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,.2); z-index: 100; }
+.topbar       { height: var(--topbar-h); background: linear-gradient(90deg, var(--purple) 0%, var(--sky) 100%); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,.2); z-index: 100; }
 .topbar-left  { display: flex; align-items: center; gap: 12px; }
 .topbar-right { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .topbar-logo  { display: flex; align-items: center; gap: 8px; }
