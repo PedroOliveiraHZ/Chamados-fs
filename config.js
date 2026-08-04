@@ -1,9 +1,10 @@
-const CONFIG = {
-  // Cole aqui a URL "/exec" gerada ao implantar o Code.gs como App da Web.
-  API_URL: 'https://script.google.com/macros/library/d/10RqhTxlixmC5qpofaPALUb-q0hmkmZ6PIhN3omK6bLTk4sg_-NNk7V19/2',
 
-  // Pessoas que aparecem no seletor "Quem é você" ao abrir um chamado.
-  // Isso é só pra preencher o setor automaticamente — não é login.
+
+const CONFIG = {
+  
+API_URL: 'https://script.google.com/macros/s/AKfycbzkYjPanl_cTGEtcXnjKtEMwgXoPnOYjIw7g4XYfpUwQ5pV0rR9uNMpSt-JAb0w311mTQ/exec',
+
+  
   PESSOAS: [
     { nome: 'Henrique',       setor: 'TI / Dados' },
     { nome: 'Rafael Germano', setor: 'TI / Dados' },
@@ -16,17 +17,24 @@ const CONFIG = {
     { nome: 'Rayssa',         setor: 'DP' },
     { nome: 'Alicia',         setor: 'DP' },
     { nome: 'Iara',           setor: 'Compliance / Logística' },
+    { nome: 'Leandro',          setor: '' },
+    { nome: 'Lia Mara',         setor: '' },
+    { nome: 'Eduardo Kevin',    setor: '' },
+    { nome: 'Guilherme Camurça',setor: '' },
+    { nome: 'Maria Clara',      setor: '' },
+    { nome: 'Eduardo',          setor: '' },
+    { nome: 'Sara',             setor: '' },
   ],
 
   SETORES: [
     'TI / Dados', 'RH', 'Marketing', 'Financeiro',
-    'Operações', 'DP', 'Compliance / Logística',
+    'Operações', 'DP', 'Compliance / Logística', 'vylo ',
   ],
 
   PRIORIDADES: ['Baixa', 'Média', 'Alta', 'Urgente'],
 
   STATUS: ['Aberto', 'Em andamento', 'Resolvido', 'Cancelado'],
 
-  // Quem gerencia os chamados no painel (só exibido, senha é validada no servidor).
+ 
   RESPONSAVEIS: ['Henrique', 'Rafael'],
 };
