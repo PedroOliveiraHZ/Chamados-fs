@@ -80,8 +80,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function onQuemChange() {
   const nome = document.getElementById('nQuem').value;
+  const outroWrap = document.getElementById('nQuemOutroWrap');
+  if (nome === '__outro__') {
+    outroWrap.style.display = 'block';
+    document.getElementById('nQuemOutro').focus();
+    return;
+  }
+  outroWrap.style.display = 'none';
   const pessoa = CONFIG.PESSOAS.find(p => p.nome === nome);
-  if (pessoa) document.getElementById('nSetor').value = pessoa.setor;
+  if (pessoa && pessoa.setor) document.getElementById('nSetor').value = pessoa.setor;
 }
 
 function updateAnexosLabel(input) {
@@ -104,8 +111,11 @@ async function submitTicket() {
   const quemSel = document.getElementById('nQuem').value;
   let solicitante = quemSel;
   if (quemSel === '__outro__') {
-    solicitante = prompt('Digite seu nome:') || '';
-    if (!solicitante.trim()) return;
+    solicitante = document.getElementById('nQuemOutro').value.trim();
+    if (!solicitante) {
+      setNovoMsg('Digite seu nome.', 'err');
+      return;
+    }
   }
   const setor = document.getElementById('nSetor').value;
   const titulo = document.getElementById('nTit').value.trim();
@@ -135,6 +145,7 @@ async function submitTicket() {
       document.getElementById('nTit').value = '';
       document.getElementById('nDesc').value = '';
       document.getElementById('nAnexos').value = '';
+      document.getElementById('nQuemOutro').value = '';
       anexosSelecionados = [];
       updateAnexosLabel({ files: [] });
     } else {
