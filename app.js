@@ -86,6 +86,7 @@ function fileToBase64(file) {
 // ── Abrir chamado ─────────────────────────────────────────────
 async function submitTicket() {
   const solicitante = document.getElementById('nQuem').value.trim();
+  const email = document.getElementById('nEmail').value.trim();
   const setor = document.getElementById('nSetor').value;
   const titulo = document.getElementById('nTit').value.trim();
   const descricao = document.getElementById('nDesc').value.trim();
@@ -94,6 +95,11 @@ async function submitTicket() {
   if (!solicitante) {
     setNovoMsg('Digite seu nome pra enviar o chamado.', 'err');
     document.getElementById('nQuem').focus();
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    setNovoMsg('Digite um e-mail válido — é por ele que você vai receber as respostas.', 'err');
+    document.getElementById('nEmail').focus();
     return;
   }
   if (!setor || !titulo || !descricao) {
@@ -111,12 +117,13 @@ async function submitTicket() {
     })));
 
     const resp = await apiPost({
-      action: 'create', solicitante, setor, titulo, descricao, prioridade, anexos
+      action: 'create', solicitante, email, setor, titulo, descricao, prioridade, anexos
     });
 
     if (resp.ok) {
-      setNovoMsg(`Chamado ${resp.id} aberto com sucesso! Henrique e Rafael foram notificados.`, 'ok');
+      setNovoMsg(`Chamado ${resp.id} aberto com sucesso! Você vai receber por e-mail os comentários sobre o andamento.`, 'ok');
       document.getElementById('nQuem').value = '';
+      document.getElementById('nEmail').value = '';
       document.getElementById('nTit').value = '';
       document.getElementById('nDesc').value = '';
       document.getElementById('nAnexos').value = '';
@@ -277,6 +284,7 @@ function openTicket(id) {
 
   document.getElementById('mBody').innerHTML = `
     <div class="ir"><span class="il">Solicitante</span><span>${escapeHtml(t.solicitante)}</span></div>
+    <div class="ir"><span class="il">E-mail</span><span>${escapeHtml(t.email)}</span></div>
     <div class="ir"><span class="il">Setor</span><span>${escapeHtml(t.setor)}</span></div>
     <div class="ir"><span class="il">Prioridade</span><span>${t.prioridade}</span></div>
     <div class="ir"><span class="il">Aberto em</span><span>${fmtData(t.dataAbertura)}</span></div>
@@ -352,11 +360,11 @@ function closeMod() {
   currentTicketId = null;
 }
 
-
+// ── Chamadas à API (Apps Script Web App) ────────────────────────
 async function apiPost(body) {
   const res = await fetch(CONFIG.API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
     body: JSON.stringify(body),
   });
   return res.json();
