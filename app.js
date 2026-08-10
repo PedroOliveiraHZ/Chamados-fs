@@ -38,16 +38,6 @@ function toggleView() {
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   // Preenche selects a partir do config.js
-  const selQuem = document.getElementById('nQuem');
-  CONFIG.PESSOAS.forEach(p => {
-    const op = document.createElement('option');
-    op.value = p.nome; op.textContent = p.nome;
-    selQuem.appendChild(op);
-  });
-  const opOutro = document.createElement('option');
-  opOutro.value = '__outro__'; opOutro.textContent = 'Outro (não estou na lista)';
-  selQuem.appendChild(opOutro);
-
   const selSetor = document.getElementById('nSetor');
   CONFIG.SETORES.forEach(s => {
     const op = document.createElement('option');
@@ -78,19 +68,6 @@ window.addEventListener('DOMContentLoaded', () => {
   showView('novo');
 });
 
-function onQuemChange() {
-  const nome = document.getElementById('nQuem').value;
-  const outroWrap = document.getElementById('nQuemOutroWrap');
-  if (nome === '__outro__') {
-    outroWrap.style.display = 'block';
-    document.getElementById('nQuemOutro').focus();
-    return;
-  }
-  outroWrap.style.display = 'none';
-  const pessoa = CONFIG.PESSOAS.find(p => p.nome === nome);
-  if (pessoa && pessoa.setor) document.getElementById('nSetor').value = pessoa.setor;
-}
-
 function updateAnexosLabel(input) {
   anexosSelecionados = Array.from(input.files || []);
   document.getElementById('nAnexosLabel').textContent =
@@ -108,22 +85,19 @@ function fileToBase64(file) {
 
 // ── Abrir chamado ─────────────────────────────────────────────
 async function submitTicket() {
-  const quemSel = document.getElementById('nQuem').value;
-  let solicitante = quemSel;
-  if (quemSel === '__outro__') {
-    solicitante = document.getElementById('nQuemOutro').value.trim();
-    if (!solicitante) {
-      setNovoMsg('Digite seu nome.', 'err');
-      return;
-    }
-  }
+  const solicitante = document.getElementById('nQuem').value.trim();
   const setor = document.getElementById('nSetor').value;
   const titulo = document.getElementById('nTit').value.trim();
   const descricao = document.getElementById('nDesc').value.trim();
   const prioridade = document.getElementById('nPrio').value;
 
-  if (!solicitante || !setor || !titulo || !descricao) {
-    setNovoMsg('Preencha quem é você, setor, título e descrição.', 'err');
+  if (!solicitante) {
+    setNovoMsg('Digite seu nome pra enviar o chamado.', 'err');
+    document.getElementById('nQuem').focus();
+    return;
+  }
+  if (!setor || !titulo || !descricao) {
+    setNovoMsg('Preencha setor, título e descrição.', 'err');
     return;
   }
 
@@ -142,10 +116,10 @@ async function submitTicket() {
 
     if (resp.ok) {
       setNovoMsg(`Chamado ${resp.id} aberto com sucesso! Henrique e Rafael foram notificados.`, 'ok');
+      document.getElementById('nQuem').value = '';
       document.getElementById('nTit').value = '';
       document.getElementById('nDesc').value = '';
       document.getElementById('nAnexos').value = '';
-      document.getElementById('nQuemOutro').value = '';
       anexosSelecionados = [];
       updateAnexosLabel({ files: [] });
     } else {
@@ -217,6 +191,21 @@ async function reloadPainel() {
   }
 }
 
+function isAtrasado(t) {
+  if (t.status === 'Resolvido' || t.status === 'Cancelado') return false;
+  const horas = CONFIG.PRAZO_HORAS[t.prioridade];
+  if (!horas) return false;
+  const prazo = new Date(t.dataAbertura).getTime() + horas * 3600 * 1000;
+  return Date.now() > prazo;
+}
+
+function prazoLabel(t) {
+  const horas = CONFIG.PRAZO_HORAS[t.prioridade];
+  if (!horas) return '';
+  const prazo = new Date(new Date(t.dataAbertura).getTime() + horas * 3600 * 1000);
+  return prazo.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
 function renderPainel() {
   const st = document.getElementById('fStatus').value;
   const se = document.getElementById('fSetor').value;
@@ -235,7 +224,8 @@ function renderPainel() {
     mc('Abertos', CHAMADOS.filter(t=>t.status==='Aberto').length, 'warn') +
     mc('Em andamento', CHAMADOS.filter(t=>t.status==='Em andamento').length) +
     mc('Resolvidos', CHAMADOS.filter(t=>t.status==='Resolvido').length, 'grn') +
-    mc('Urgentes abertos', CHAMADOS.filter(t=>t.prioridade==='Urgente'&&t.status!=='Resolvido'&&t.status!=='Cancelado').length, 'red');
+    mc('Urgentes abertos', CHAMADOS.filter(t=>t.prioridade==='Urgente'&&t.status!=='Resolvido'&&t.status!=='Cancelado').length, 'red') +
+    mc('Atrasados', CHAMADOS.filter(isAtrasado).length, 'red');
 
   const tlist = document.getElementById('tlist');
   if (!lista.length) {
@@ -251,12 +241,14 @@ function renderPainel() {
       <div class="tcard-top">
         <div class="tcard-title">${escapeHtml(t.titulo)}</div>
         <span class="sb ${statusClass[t.status]||'s-ab'}">${t.status}</span>
+        ${isAtrasado(t) ? '<span class="sb s-re">Atrasado</span>' : ''}
       </div>
       <div class="tcard-meta">
         <span><i class="ti ti-user"></i>${escapeHtml(t.solicitante)}</span>
         <span><i class="ti ti-building"></i>${escapeHtml(t.setor)}</span>
         <span class="prio-tag ${prioClass[t.prioridade]||''}">${t.prioridade}</span>
         <span><i class="ti ti-clock"></i>${fmtData(t.dataAbertura)}</span>
+        <span><i class="ti ti-hourglass"></i>Prazo: ${prazoLabel(t)}</span>
         ${t.responsavel ? `<span><i class="ti ti-user-check"></i>${escapeHtml(t.responsavel)}</span>` : ''}
       </div>
     </div>
@@ -288,6 +280,7 @@ function openTicket(id) {
     <div class="ir"><span class="il">Setor</span><span>${escapeHtml(t.setor)}</span></div>
     <div class="ir"><span class="il">Prioridade</span><span>${t.prioridade}</span></div>
     <div class="ir"><span class="il">Aberto em</span><span>${fmtData(t.dataAbertura)}</span></div>
+    <div class="ir"><span class="il">Prazo</span><span>${prazoLabel(t)}${isAtrasado(t) ? ' — <strong style="color:var(--danger)">Atrasado</strong>' : ''}</span></div>
     <div class="divl"></div>
     <div class="sec-title">Descrição</div>
     <p>${escapeHtml(t.descricao).replace(/\n/g,'<br>')}</p>
@@ -358,6 +351,7 @@ function closeMod() {
   document.getElementById('ovTicket').classList.remove('open');
   currentTicketId = null;
 }
+
 
 async function apiPost(body) {
   const res = await fetch(CONFIG.API_URL, {
