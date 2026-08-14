@@ -198,18 +198,43 @@ async function reloadPainel() {
   }
 }
 
+function isDiaUtil(d) {
+  const dia = d.getDay();
+  return dia !== 0 && dia !== 6; // 0=domingo, 6=sábado
+}
+
+// Soma horas de prazo contando só segunda a sexta — sábado e domingo
+// são pulados inteiros e não consomem prazo.
+function calcularPrazo(dataAbertura, horas) {
+  let atual = new Date(dataAbertura);
+  let restante = horas;
+  while (restante > 0) {
+    if (isDiaUtil(atual)) {
+      const fimDoDia = new Date(atual);
+      fimDoDia.setHours(24, 0, 0, 0);
+      const horasAteFimDoDia = (fimDoDia - atual) / 3600000;
+      const passo = Math.min(restante, horasAteFimDoDia);
+      atual = new Date(atual.getTime() + passo * 3600000);
+      restante -= passo;
+    } else {
+      atual.setHours(24, 0, 0, 0); // pula pro início do próximo dia
+    }
+  }
+  return atual;
+}
+
 function isAtrasado(t) {
   if (t.status === 'Resolvido' || t.status === 'Cancelado') return false;
   const horas = CONFIG.PRAZO_HORAS[t.prioridade];
   if (!horas) return false;
-  const prazo = new Date(t.dataAbertura).getTime() + horas * 3600 * 1000;
+  const prazo = calcularPrazo(new Date(t.dataAbertura), horas).getTime();
   return Date.now() > prazo;
 }
 
 function prazoLabel(t) {
   const horas = CONFIG.PRAZO_HORAS[t.prioridade];
   if (!horas) return '';
-  const prazo = new Date(new Date(t.dataAbertura).getTime() + horas * 3600 * 1000);
+  const prazo = calcularPrazo(new Date(t.dataAbertura), horas);
   return prazo.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
