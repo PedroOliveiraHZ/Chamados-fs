@@ -68,8 +68,19 @@ window.addEventListener('DOMContentLoaded', () => {
   showView('novo');
 });
 
+const ANEXO_MAX_MB = 5;
+
 function updateAnexosLabel(input) {
-  anexosSelecionados = Array.from(input.files || []);
+  const arquivos = Array.from(input.files || []);
+  const grandes = arquivos.filter(f => f.size > ANEXO_MAX_MB * 1024 * 1024);
+  if (grandes.length) {
+    setNovoMsg(`Arquivo "${grandes[0].name}" passa de ${ANEXO_MAX_MB}MB — remova ou escolha um menor.`, 'err');
+    input.value = '';
+    anexosSelecionados = [];
+    document.getElementById('nAnexosLabel').textContent = 'Clique ou arraste arquivos aqui';
+    return;
+  }
+  anexosSelecionados = arquivos;
   document.getElementById('nAnexosLabel').textContent =
     anexosSelecionados.length ? `${anexosSelecionados.length} arquivo(s) selecionado(s)` : 'Clique ou arraste arquivos aqui';
 }
@@ -386,17 +397,26 @@ function closeMod() {
 }
 
 // ── Chamadas à API (Apps Script Web App) ────────────────────────
+async function parseApiResponse(res) {
+  const texto = await res.text();
+  try {
+    return JSON.parse(texto);
+  } catch (err) {
+    throw new Error('O servidor não respondeu corretamente (provavelmente anexo grande demais ou o App da Web precisa ser reimplantado). Tente sem anexo ou com um arquivo menor.');
+  }
+}
+
 async function apiPost(body) {
   const res = await fetch(CONFIG.API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
     body: JSON.stringify(body),
   });
-  return res.json();
+  return parseApiResponse(res);
 }
 
 async function apiGet(params) {
   const qs = new URLSearchParams(params).toString();
   const res = await fetch(CONFIG.API_URL + '?' + qs);
-  return res.json();
+  return parseApiResponse(res);
 }
