@@ -7,32 +7,47 @@ let CHAMADOS = [];
 let COMENTARIOS = [];
 let anexosSelecionados = [];
 let currentTicketId = null;
+let MODO_ATUAL = 'novo'; // 'novo' | 'fila' | 'login' | 'painel' — controla o modal (edição ou só leitura)
 
 // ── Navegação entre views ────────────────────────────────────
 function showView(v) {
+  MODO_ATUAL = v;
   document.getElementById('viewNovo').style.display   = v === 'novo'   ? 'block' : 'none';
+  document.getElementById('viewFila').style.display   = v === 'fila'   ? 'block' : 'none';
   document.getElementById('viewLogin').style.display  = v === 'login'  ? 'block' : 'none';
   document.getElementById('viewPainel').style.display = v === 'painel' ? 'block' : 'none';
 
-  const label = document.getElementById('btnNavLabel');
-  const icon  = document.querySelector('#btnNav .ti');
-  if (v === 'novo') {
-    label.textContent = 'Painel';
-    icon.className = 'ti ti-lock';
+  const labelNav = document.getElementById('btnNavLabel');
+  const iconNav  = document.querySelector('#btnNav .ti');
+  if (v === 'painel' || v === 'login') {
+    labelNav.textContent = 'Abrir chamado';
+    iconNav.className = 'ti ti-arrow-back';
   } else {
-    label.textContent = 'Abrir chamado';
-    icon.className = 'ti ti-arrow-back';
+    labelNav.textContent = 'Painel';
+    iconNav.className = 'ti ti-lock';
+  }
+
+  const labelFila = document.getElementById('btnFilaLabel');
+  const iconFila  = document.querySelector('#btnFila .ti');
+  if (v === 'fila') {
+    labelFila.textContent = 'Abrir chamado';
+    iconFila.className = 'ti ti-arrow-back';
+  } else {
+    labelFila.textContent = 'Fila de chamados';
+    iconFila.className = 'ti ti-list-check';
   }
 }
 
 function toggleView() {
-  const atual = document.getElementById('viewNovo').style.display !== 'none' ? 'novo' : 'outro';
-  if (atual === 'novo') {
-    if (PAINEL_KEY) { showView('painel'); reloadPainel(); }
-    else { showView('login'); document.getElementById('pSenha').focus(); }
-  } else {
-    showView('novo');
-  }
+  if (MODO_ATUAL === 'painel' || MODO_ATUAL === 'login') { showView('novo'); return; }
+  if (PAINEL_KEY) { showView('painel'); reloadPainel(); }
+  else { showView('login'); document.getElementById('pSenha').focus(); }
+}
+
+function toggleFila() {
+  if (MODO_ATUAL === 'fila') { showView('novo'); return; }
+  showView('fila');
+  reloadFila();
 }
 
 // ── Init ──────────────────────────────────────────────────────
@@ -63,6 +78,19 @@ window.addEventListener('DOMContentLoaded', () => {
     const op = document.createElement('option');
     op.value = s; op.textContent = s;
     fSetor.appendChild(op);
+  });
+
+  const gStatus = document.getElementById('gStatus');
+  CONFIG.STATUS.forEach(s => {
+    const op = document.createElement('option');
+    op.value = s; op.textContent = s;
+    gStatus.appendChild(op);
+  });
+  const gSetor = document.getElementById('gSetor');
+  CONFIG.SETORES.forEach(s => {
+    const op = document.createElement('option');
+    op.value = s; op.textContent = s;
+    gSetor.appendChild(op);
   });
 
   showView('novo');
@@ -249,6 +277,35 @@ function prazoLabel(t) {
   return prazo.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
+function renderTicketCards(lista, containerId) {
+  const container = document.getElementById(containerId);
+  if (!lista.length) {
+    container.innerHTML = '<div class="empty"><i class="ti ti-inbox"></i><p>Nenhum chamado encontrado.</p></div>';
+    return;
+  }
+
+  const statusClass = { 'Aberto':'s-ab', 'Em andamento':'s-en', 'Resolvido':'s-ap', 'Cancelado':'s-re' };
+  const prioClass = { 'Baixa':'prio-baixa', 'Média':'prio-média', 'Alta':'prio-alta', 'Urgente':'prio-urgente' };
+
+  container.innerHTML = lista.map(t => `
+    <div class="tcard" onclick="openTicket('${t.id}')">
+      <div class="tcard-top">
+        <div class="tcard-title">${escapeHtml(t.titulo)}</div>
+        <span class="sb ${statusClass[t.status]||'s-ab'}">${t.status}</span>
+        ${isAtrasado(t) ? '<span class="sb s-re">Atrasado</span>' : ''}
+      </div>
+      <div class="tcard-meta">
+        <span><i class="ti ti-user"></i>${escapeHtml(t.solicitante)}</span>
+        <span><i class="ti ti-building"></i>${escapeHtml(t.setor)}</span>
+        <span class="prio-tag ${prioClass[t.prioridade]||''}">${t.prioridade}</span>
+        <span><i class="ti ti-clock"></i>${fmtData(t.dataAbertura)}</span>
+        <span><i class="ti ti-hourglass"></i>Prazo: ${prazoLabel(t)}</span>
+        ${t.responsavel ? `<span><i class="ti ti-user-check"></i>${escapeHtml(t.responsavel)}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
 function renderPainel() {
   const st = document.getElementById('fStatus').value;
   const se = document.getElementById('fSetor').value;
@@ -270,32 +327,39 @@ function renderPainel() {
     mc('Urgentes abertos', CHAMADOS.filter(t=>t.prioridade==='Urgente'&&t.status!=='Resolvido'&&t.status!=='Cancelado').length, 'red') +
     mc('Atrasados', CHAMADOS.filter(isAtrasado).length, 'red');
 
-  const tlist = document.getElementById('tlist');
-  if (!lista.length) {
-    tlist.innerHTML = '<div class="empty"><i class="ti ti-inbox"></i><p>Nenhum chamado encontrado.</p></div>';
-    return;
+  renderTicketCards(lista, 'tlist');
+}
+
+// ── Fila pública (somente leitura, sem senha) ────────────────────
+async function reloadFila() {
+  const glist = document.getElementById('glist');
+  glist.innerHTML = '<div class="empty"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i><p>Carregando...</p></div>';
+  try {
+    const resp = await apiGet({ action: 'listPublic' });
+    if (!resp.ok) {
+      glist.innerHTML = `<div class="empty"><p>${resp.error}</p></div>`;
+      return;
+    }
+    CHAMADOS = resp.chamados;
+    COMENTARIOS = resp.comentarios || [];
+    renderFila();
+  } catch (err) {
+    glist.innerHTML = `<div class="empty"><p>Erro de conexão: ${err.message}</p></div>`;
   }
+}
 
-  const statusClass = { 'Aberto':'s-ab', 'Em andamento':'s-en', 'Resolvido':'s-ap', 'Cancelado':'s-re' };
-  const prioClass = { 'Baixa':'prio-baixa', 'Média':'prio-média', 'Alta':'prio-alta', 'Urgente':'prio-urgente' };
+function renderFila() {
+  const st = document.getElementById('gStatus').value;
+  const se = document.getElementById('gSetor').value;
+  const bu = document.getElementById('gBusca').value.toLowerCase();
 
-  tlist.innerHTML = lista.map(t => `
-    <div class="tcard" onclick="openTicket('${t.id}')">
-      <div class="tcard-top">
-        <div class="tcard-title">${escapeHtml(t.titulo)}</div>
-        <span class="sb ${statusClass[t.status]||'s-ab'}">${t.status}</span>
-        ${isAtrasado(t) ? '<span class="sb s-re">Atrasado</span>' : ''}
-      </div>
-      <div class="tcard-meta">
-        <span><i class="ti ti-user"></i>${escapeHtml(t.solicitante)}</span>
-        <span><i class="ti ti-building"></i>${escapeHtml(t.setor)}</span>
-        <span class="prio-tag ${prioClass[t.prioridade]||''}">${t.prioridade}</span>
-        <span><i class="ti ti-clock"></i>${fmtData(t.dataAbertura)}</span>
-        <span><i class="ti ti-hourglass"></i>Prazo: ${prazoLabel(t)}</span>
-        ${t.responsavel ? `<span><i class="ti ti-user-check"></i>${escapeHtml(t.responsavel)}</span>` : ''}
-      </div>
-    </div>
-  `).join('');
+  let lista = CHAMADOS.filter(t =>
+    (!st || t.status === st) &&
+    (!se || t.setor === se) &&
+    (!bu || t.titulo.toLowerCase().includes(bu) || t.solicitante.toLowerCase().includes(bu))
+  );
+
+  renderTicketCards(lista, 'glist');
 }
 
 function escapeHtml(s) {
@@ -314,15 +378,17 @@ function openTicket(id) {
   const t = CHAMADOS.find(x => x.id === id);
   if (!t) return;
   currentTicketId = id;
+  const somenteLeitura = MODO_ATUAL === 'fila';
   document.getElementById('mTitle').textContent = t.id + ' — ' + t.titulo;
 
   const coments = COMENTARIOS.filter(c => c.chamadoId === id);
 
   document.getElementById('mBody').innerHTML = `
     <div class="ir"><span class="il">Solicitante</span><span>${escapeHtml(t.solicitante)}</span></div>
-    <div class="ir"><span class="il">E-mail</span><span>${escapeHtml(t.email)}</span></div>
+    ${somenteLeitura ? '' : `<div class="ir"><span class="il">E-mail</span><span>${escapeHtml(t.email)}</span></div>`}
     <div class="ir"><span class="il">Setor</span><span>${escapeHtml(t.setor)}</span></div>
     <div class="ir"><span class="il">Prioridade</span><span>${t.prioridade}</span></div>
+    <div class="ir"><span class="il">Status</span><span>${t.status}</span></div>
     <div class="ir"><span class="il">Aberto em</span><span>${fmtData(t.dataAbertura)}</span></div>
     <div class="ir"><span class="il">Prazo</span><span>${prazoLabel(t)}${isAtrasado(t) ? ' — <strong style="color:var(--danger)">Atrasado</strong>' : ''}</span></div>
     <div class="divl"></div>
@@ -334,6 +400,7 @@ function openTicket(id) {
         ${t.anexos.map(a => `<a class="anexo-item" href="${a}" target="_blank"><i class="ti ti-paperclip"></i><span>Abrir anexo</span></a>`).join('')}
       </div>` : ''}
     <div class="divl"></div>
+    ${somenteLeitura ? '' : `
     <div class="fg">
       <label class="fl">Status</label>
       <select id="dStatus">${CONFIG.STATUS.map(s => `<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>
@@ -345,7 +412,7 @@ function openTicket(id) {
         ${CONFIG.RESPONSAVEIS.map(r => `<option ${r===t.responsavel?'selected':''}>${r}</option>`).join('')}
       </select>
     </div>
-    <div class="divl"></div>
+    <div class="divl"></div>`}
     <div class="sec-title">Comentários</div>
     <div class="chat-wrap">
       ${coments.length ? coments.map(c => `
@@ -354,14 +421,17 @@ function openTicket(id) {
           ${escapeHtml(c.texto)}
         </div>`).join('') : '<div class="empty" style="padding:16px"><p>Sem comentários ainda.</p></div>'}
     </div>
+    ${somenteLeitura ? '' : `
     <div class="chat-input-row">
       <select id="cAutor" style="max-width:140px">${CONFIG.RESPONSAVEIS.map(r=>`<option>${r}</option>`).join('')}</select>
       <input id="cTexto" type="text" placeholder="Escrever comentário..." onkeydown="if(event.key==='Enter')addComentario()"/>
       <button class="btn btn-primary btn-sm" onclick="addComentario()"><i class="ti ti-send"></i></button>
-    </div>
+    </div>`}
   `;
 
-  document.getElementById('mFoot').innerHTML = `
+  document.getElementById('mFoot').innerHTML = somenteLeitura
+    ? `<button class="btn" onclick="closeMod()">Fechar</button>`
+    : `
     <button class="btn" onclick="closeMod()">Fechar</button>
     <button class="btn btn-primary" onclick="salvarStatus()"><i class="ti ti-check"></i> Salvar</button>
   `;

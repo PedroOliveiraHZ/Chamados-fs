@@ -18,6 +18,9 @@
     </div>
   </div>
   <div class="topbar-right">
+    <button class="btn btn-sm" id="btnFila" onclick="toggleFila()">
+      <i class="ti ti-list-check" aria-hidden="true"></i> <span id="btnFilaLabel">Fila de chamados</span>
+    </button>
     <button class="btn btn-sm" id="btnNav" onclick="toggleView()">
       <i class="ti ti-lock" aria-hidden="true"></i> <span id="btnNavLabel">Painel</span>
     </button>
@@ -42,7 +45,7 @@
       </div>
 
       <div class="fg">
-        <label class="fl"> Qual o seu setor?</label>
+        <label class="fl">Setor</label>
         <select id="nSetor"></select>
       </div>
 
@@ -76,12 +79,32 @@
       <div id="novoMsg" style="margin-top:12px"></div>
     </section>
 
+    <!-- ── VIEW: FILA DE CHAMADOS (pública, somente leitura) ──────── -->
+    <section id="viewFila" style="display:none;max-width:100%;">
+      <div class="ph">
+        <div class="ph-title">Fila de chamados</div>
+        <button class="btn btn-sm" onclick="reloadFila()"><i class="ti ti-refresh"></i> Atualizar</button>
+      </div>
+
+      <div class="filter-bar">
+        <select id="gStatus" onchange="renderFila()">
+          <option value="">Todos os status</option>
+        </select>
+        <select id="gSetor" onchange="renderFila()">
+          <option value="">Todos os setores</option>
+        </select>
+        <input id="gBusca" type="text" placeholder="Buscar por título ou nome..." oninput="renderFila()"/>
+      </div>
+
+      <div class="tlist" id="glist"></div>
+    </section>
+
     <!-- ── VIEW: LOGIN DO PAINEL ─────────────────────────────────── -->
     <section id="viewLogin" style="display:none;max-width:380px;margin:60px auto 0;">
       <div class="login-box">
         <div class="login-logo"><div class="logo-circle"><img src="logo.png" alt="Fortsun" class="logo-img"/></div></div>
         <div class="login-title">Painel de chamados</div>
-        <div class="login-sub">Acesso restrito — Henrique / Rafael</div>
+        <div class="login-sub">Acesso restrito — Henrique / Rafael / Pedro</div>
         <div class="fg" style="text-align:left;margin-top:20px">
           <label class="fl">Senha de acesso</label>
           <input id="pSenha" type="password" placeholder="Senha do painel" onkeydown="if(event.key==='Enter')doLoginPainel()"/>
