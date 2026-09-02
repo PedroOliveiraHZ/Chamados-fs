@@ -51,6 +51,13 @@ function toggleFila() {
 }
 
 // ── Init ──────────────────────────────────────────────────────
+function labelPrazo(horas) {
+  if (!horas) return '';
+  if (horas < 24) return ` — até ${horas}h`;
+  const dias = Math.round(horas / 24);
+  return dias > 1 ? ` — até ${dias} dias úteis` : ` — até ${dias} dia útil`;
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   // Preenche selects a partir do config.js
   const selSetor = document.getElementById('nSetor');
@@ -63,7 +70,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const selPrio = document.getElementById('nPrio');
   CONFIG.PRIORIDADES.forEach(p => {
     const op = document.createElement('option');
-    op.value = p; op.textContent = p;
+    op.value = p; op.textContent = p + labelPrazo(CONFIG.PRAZO_HORAS[p]);
     selPrio.appendChild(op);
   });
 
