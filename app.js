@@ -474,26 +474,51 @@ function closeMod() {
 }
 
 // ── Chamadas à API (Apps Script Web App) ────────────────────────
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 async function parseApiResponse(res) {
   const texto = await res.text();
   try {
     return JSON.parse(texto);
   } catch (err) {
-    throw new Error('O servidor não respondeu corretamente (provavelmente anexo grande demais ou o App da Web precisa ser reimplantado). Tente sem anexo ou com um arquivo menor.');
+    const erro = new Error('O servidor não respondeu corretamente (provavelmente anexo grande demais ou o App da Web precisa ser reimplantado). Tente sem anexo ou com um arquivo menor.');
+    erro.respostaInvalida = true; // sinaliza que vale a pena tentar de novo
+    throw erro;
+  }
+}
+
+// Tenta de novo automaticamente quando a requisição falha antes de chegar
+// no servidor (rede/cold start) — comum logo após um redeploy. Não repete
+// quando já chegou uma resposta do servidor mas ela veio inválida: nesse
+// caso o servidor pode já ter processado (ex.: criado o chamado), e
+// repetir arriscaria duplicar.
+async function comRetentativa(fn, tentativas = 2, repetirRespostaInvalida = false) {
+  for (let i = 1; i <= tentativas; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const vale = err.message === 'Failed to fetch' || (repetirRespostaInvalida && err.respostaInvalida);
+      if (!vale || i === tentativas) throw err;
+      await sleep(1200);
+    }
   }
 }
 
 async function apiPost(body) {
-  const res = await fetch(CONFIG.API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
-    body: JSON.stringify(body),
-  });
-  return parseApiResponse(res);
+  return comRetentativa(async () => {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
+      body: JSON.stringify(body),
+    });
+    return parseApiResponse(res);
+  }); // só repete falha de rede — evita duplicar chamado/comentário
 }
 
 async function apiGet(params) {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(CONFIG.API_URL + '?' + qs);
-  return parseApiResponse(res);
+  return comRetentativa(async () => {
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(CONFIG.API_URL + '?' + qs);
+    return parseApiResponse(res);
+  }, 2, true); // GET é sempre seguro de repetir — pode incluir resposta inválida
 }
