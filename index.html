@@ -38,21 +38,9 @@
 
   <!-- VIEW: ABRIR CHAMADO (publica, padrao) -->
   <section id="viewNovo" class="split">
-    <aside class="hero">
-      <h1 class="hero-title">Precisa de ajuda? Abra um chamado.</h1>
-      <p class="hero-sub">Conte o que precisa. A equipe responde por e-mail e você acompanha o andamento na fila.</p>
-      <ol class="hero-steps">
-        <li><i class="ti ti-pencil" aria-hidden="true"></i><span>Descreva o pedido e escolha a prioridade</span></li>
-        <li><i class="ti ti-mail" aria-hidden="true"></i><span>Receba as respostas no seu e-mail</span></li>
-        <li><i class="ti ti-corner-down-left" aria-hidden="true"></i><span>Responda o e-mail e o retorno vira comentário</span></li>
-      </ol>
-      <button class="hero-link" type="button" onclick="toggleFila()">
-        Ver fila de chamados <i class="ti ti-arrow-right" aria-hidden="true"></i>
-      </button>
-    </aside>
-
     <div class="card form-card">
       <form id="formNovo" novalidate onsubmit="event.preventDefault(); submitTicket();">
+      <h1 class="form-title">Abrir chamado</h1>
         <div class="row-2">
           <div class="fg">
             <label class="fl" for="nQuem">Seu nome</label>
