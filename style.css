@@ -93,7 +93,8 @@ img { max-width: 100%; }
 .content { max-width: 1120px; margin: 0 auto; padding: 28px 20px 56px; }
 .wide { width: 100%; }
 
-.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
+.split { max-width: 680px; margin: 0 auto; }
+.form-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 20px; }
 
 .hero {
   background: linear-gradient(160deg, var(--brand) 0%, var(--brand-3) 100%);
