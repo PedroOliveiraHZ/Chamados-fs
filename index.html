@@ -3,160 +3,208 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Fortsun — Sistema de Chamados</title>
+<link rel="icon" href="logo.png"/>
+<meta name="theme-color" content="#3D398F"/>
+<title>Chamados FS</title>
+<link rel="preload" href="fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin/>
+<link rel="preload" href="fonts/montserrat-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin/>
 <link rel="stylesheet" href="style.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 </head>
 <body>
 
-<!-- ── TOPBAR ────────────────────────────────────────────────────── -->
+<a class="skip" href="#content">Ir para o conteúdo</a>
+
+<!-- TOPBAR -->
 <header class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-logo">
-      <div class="logo-circle-sm"><img src="logo.png" alt="Fortsun" class="logo-img"/></div>
-      <span class="topbar-brand">Fortsun</span>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <button class="btn btn-sm" id="btnFila" onclick="toggleFila()">
-      <i class="ti ti-list-check" aria-hidden="true"></i> <span id="btnFilaLabel">Fila de chamados</span>
-    </button>
-    <button class="btn btn-sm" id="btnNav" onclick="toggleView()">
-      <i class="ti ti-lock" aria-hidden="true"></i> <span id="btnNavLabel">Painel</span>
-    </button>
+  <div class="topbar-inner">
+    <a class="brand" href="./" aria-label="Chamados FS">
+      <img src="logo.png" alt="Fortsun" class="brand-logo"/>
+      <span class="brand-sep" aria-hidden="true"></span>
+      <span class="brand-name">Chamados FS</span>
+    </a>
+    <nav class="topbar-right" aria-label="Navegação principal">
+      <button class="btn btn-ghost btn-sm" id="btnFila" onclick="toggleFila()">
+        <i class="ti ti-list-check" aria-hidden="true"></i><span class="btn-label" id="btnFilaLabel">Fila de chamados</span>
+      </button>
+      <button class="btn btn-ghost btn-sm" id="btnNav" onclick="toggleView()">
+        <i class="ti ti-lock" aria-hidden="true"></i><span class="btn-label" id="btnNavLabel">Painel</span>
+      </button>
+    </nav>
   </div>
 </header>
 
-<div class="main-layout">
-  <main class="content" id="content" style="width:100%;max-width:760px;margin:0 auto;">
+<main id="content" class="content">
 
-    <!-- ── VIEW: ABRIR CHAMADO (pública, padrão) ─────────────────── -->
-    <section id="viewNovo">
-      <div class="ph"><div class="ph-title">Abrir chamado</div></div>
-
-      <div class="fg">
-        <label class="fl">Seu nome</label>
-        <input id="nQuem" type="text" placeholder="Digite seu nome completo" required/>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Seu e-mail</label>
-        <input id="nEmail" type="email" placeholder="seunome@fortsunbrasil.com" required/>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Setor</label>
-        <select id="nSetor"></select>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Título</label>
-        <input id="nTit" type="text" placeholder="Descreva brevemente a solicitação"/>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Descrição detalhada</label>
-        <textarea id="nDesc" placeholder="Explique o que precisa e por quê..."></textarea>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Prioridade</label>
-        <select id="nPrio"></select>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Anexos (opcional)</label>
-        <label class="anexo-dropzone" for="nAnexos">
-          <i class="ti ti-upload" aria-hidden="true"></i>
-          <span id="nAnexosLabel">Clique ou arraste arquivos aqui</span>
-        </label>
-        <input id="nAnexos" type="file" multiple style="display:none" onchange="updateAnexosLabel(this)"/>
-      </div>
-
-      <button class="btn btn-primary" id="submitBtn" onclick="submitTicket()" style="width:100%;justify-content:center;padding:12px;">
-        <i class="ti ti-send" aria-hidden="true"></i> Enviar chamado
+  <!-- VIEW: ABRIR CHAMADO (publica, padrao) -->
+  <section id="viewNovo" class="split">
+    <aside class="hero">
+      <h1 class="hero-title">Precisa de ajuda? Abra um chamado.</h1>
+      <p class="hero-sub">Conte o que precisa. A equipe responde por e-mail e você acompanha o andamento na fila.</p>
+      <ol class="hero-steps">
+        <li><i class="ti ti-pencil" aria-hidden="true"></i><span>Descreva o pedido e escolha a prioridade</span></li>
+        <li><i class="ti ti-mail" aria-hidden="true"></i><span>Receba as respostas no seu e-mail</span></li>
+        <li><i class="ti ti-corner-down-left" aria-hidden="true"></i><span>Responda o e-mail e o retorno vira comentário</span></li>
+      </ol>
+      <button class="hero-link" type="button" onclick="toggleFila()">
+        Ver fila de chamados <i class="ti ti-arrow-right" aria-hidden="true"></i>
       </button>
-      <div id="novoMsg" style="margin-top:12px"></div>
-    </section>
+    </aside>
 
-    <!-- ── VIEW: FILA DE CHAMADOS (pública, somente leitura) ──────── -->
-    <section id="viewFila" style="display:none;max-width:100%;">
-      <div class="ph">
-        <div class="ph-title">Fila de chamados</div>
-        <button class="btn btn-sm" onclick="reloadFila()"><i class="ti ti-refresh"></i> Atualizar</button>
-      </div>
-
-      <div class="filter-bar">
-        <select id="gStatus" onchange="renderFila()">
-          <option value="">Todos os status</option>
-        </select>
-        <select id="gSetor" onchange="renderFila()">
-          <option value="">Todos os setores</option>
-        </select>
-        <input id="gBusca" type="text" placeholder="Buscar por título ou nome..." oninput="renderFila()"/>
-      </div>
-
-      <div class="tlist" id="glist"></div>
-    </section>
-
-    <!-- ── VIEW: LOGIN DO PAINEL ─────────────────────────────────── -->
-    <section id="viewLogin" style="display:none;max-width:380px;margin:60px auto 0;">
-      <div class="login-box">
-        <div class="login-logo"><div class="logo-circle"><img src="logo.png" alt="Fortsun" class="logo-img"/></div></div>
-        <div class="login-title">Painel de chamados</div>
-        <div class="login-sub">Acesso restrito — Henrique / Rafael / Pedro</div>
-        <div class="fg" style="text-align:left;margin-top:20px">
-          <label class="fl">Senha de acesso</label>
-          <input id="pSenha" type="password" placeholder="Senha do painel" onkeydown="if(event.key==='Enter')doLoginPainel()"/>
+    <div class="card form-card">
+      <form id="formNovo" novalidate onsubmit="event.preventDefault(); submitTicket();">
+        <div class="row-2">
+          <div class="fg">
+            <label class="fl" for="nQuem">Seu nome</label>
+            <input id="nQuem" type="text" autocomplete="name" placeholder="Nome completo" aria-describedby="eQuem"/>
+            <div class="err-msg" id="eQuem" role="alert"></div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="nEmail">Seu e-mail</label>
+            <input id="nEmail" type="email" autocomplete="email" inputmode="email" placeholder="nome@fortsunbrasil.com" aria-describedby="eEmail"/>
+            <div class="err-msg" id="eEmail" role="alert"></div>
+          </div>
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="doLoginPainel()">
-          <i class="ti ti-login" aria-hidden="true"></i> Entrar
+
+        <div class="fg">
+          <label class="fl" for="nSetor">Setor</label>
+          <select id="nSetor" aria-describedby="eSetor"></select>
+          <div class="err-msg" id="eSetor" role="alert"></div>
+        </div>
+
+        <div class="fg">
+          <label class="fl" for="nTit">Título</label>
+          <input id="nTit" type="text" placeholder="Resuma o pedido em uma frase" aria-describedby="eTit"/>
+          <div class="err-msg" id="eTit" role="alert"></div>
+        </div>
+
+        <div class="fg">
+          <label class="fl" for="nDesc">Descrição</label>
+          <textarea id="nDesc" placeholder="Explique o que precisa e por quê" aria-describedby="eDesc"></textarea>
+          <div class="err-msg" id="eDesc" role="alert"></div>
+        </div>
+
+        <fieldset class="fg prio-fieldset">
+          <legend class="fl">Prioridade</legend>
+          <div class="prio-grid" id="nPrioGroup"></div>
+          <div class="hint">Os prazos contam apenas de segunda a sexta.</div>
+        </fieldset>
+
+        <div class="fg">
+          <span class="fl" id="lblAnexos">Anexos (opcional)</span>
+          <input id="nAnexos" class="sr-only" type="file" multiple onchange="updateAnexosLabel(this)"/>
+          <label class="dropzone" for="nAnexos" id="dropzone">
+            <i class="ti ti-paperclip" aria-hidden="true"></i>
+            <span id="nAnexosLabel">Escolher arquivos (até 5MB cada)</span>
+          </label>
+        </div>
+
+        <div id="novoMsg" class="form-msg" role="alert" style="display:none"></div>
+
+        <button class="btn btn-primary btn-block" id="submitBtn" type="submit">
+          <i class="ti ti-send" aria-hidden="true"></i> Enviar chamado
         </button>
-        <div id="loginError" class="login-error" style="display:none;margin-top:14px">
-          <i class="ti ti-alert-circle" aria-hidden="true"></i>
-          <span id="loginErrorMsg">Senha incorreta</span>
+      </form>
+
+      <div id="novoOk" class="ok-panel" style="display:none" aria-live="polite">
+        <div class="ok-icon"><i class="ti ti-check" aria-hidden="true"></i></div>
+        <h2 class="ok-title">Chamado aberto</h2>
+        <div class="ok-id" id="okId"></div>
+        <p class="ok-text">Você vai receber por e-mail os comentários sobre o andamento. Para responder, basta responder o próprio e-mail.</p>
+        <div class="ok-actions">
+          <button class="btn btn-primary" type="button" onclick="novoOutro()">Abrir outro chamado</button>
+          <button class="btn" type="button" onclick="toggleFila()">Ver fila</button>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ── VIEW: PAINEL (gerenciamento) ──────────────────────────── -->
-    <section id="viewPainel" style="display:none;max-width:100%;">
-      <div class="ph">
-        <div class="ph-title">Painel de chamados</div>
-        <button class="btn btn-sm" onclick="reloadPainel()"><i class="ti ti-refresh"></i> Atualizar</button>
+  <!-- VIEW: FILA DE CHAMADOS (publica, somente leitura) -->
+  <section id="viewFila" class="wide" style="display:none">
+    <div class="ph">
+      <div>
+        <h1 class="ph-title">Fila de chamados</h1>
+        <p class="ph-sub">Acompanhe o andamento. Os mais urgentes são atendidos primeiro.</p>
       </div>
+      <button class="btn btn-sm" onclick="reloadFila()"><i class="ti ti-refresh" aria-hidden="true"></i> Atualizar</button>
+    </div>
 
-      <div class="mcrow" id="mcrow"></div>
+    <div class="stats" id="gStats"></div>
 
-      <div class="filter-bar">
-        <select id="fStatus" onchange="renderPainel()">
-          <option value="">Todos os status</option>
-        </select>
-        <select id="fSetor" onchange="renderPainel()">
-          <option value="">Todos os setores</option>
-        </select>
-        <input id="fBusca" type="text" placeholder="Buscar por título..." oninput="renderPainel()"/>
+    <div class="toolbar">
+      <div class="tabs" role="tablist" aria-label="Filtrar por situação" id="gTabs">
+        <button class="tab active" role="tab" aria-selected="true" data-tab="ativos" onclick="setTabFila('ativos')">Ativos</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="resolvidos" onclick="setTabFila('resolvidos')">Resolvidos</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="todos" onclick="setTabFila('todos')">Todos</button>
       </div>
+      <div class="toolbar-filters">
+        <label class="sr-only" for="gSetor">Setor</label>
+        <select id="gSetor" onchange="renderFila()"><option value="">Todos os setores</option></select>
+        <label class="sr-only" for="gBusca">Buscar</label>
+        <input id="gBusca" type="search" placeholder="Buscar por título ou nome" oninput="renderFila()"/>
+      </div>
+    </div>
 
-      <div class="tlist" id="tlist"></div>
-    </section>
+    <div class="tlist" id="glist"></div>
+  </section>
 
-  </main>
-</div>
+  <!-- VIEW: LOGIN DO PAINEL -->
+  <section id="viewLogin" style="display:none">
+    <div class="login-box card">
+      <div class="login-logo"><img src="logo.png" alt="Fortsun"/></div>
+      <h1 class="login-title">Painel de chamados</h1>
+      <div class="login-sub">Acesso restrito: Henrique, Rafael e Pedro</div>
+      <div class="fg">
+        <label class="fl" for="pSenha">Senha de acesso</label>
+        <input id="pSenha" type="password" autocomplete="current-password" placeholder="Senha do painel" onkeydown="if(event.key==='Enter')doLoginPainel()"/>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doLoginPainel()">
+        <i class="ti ti-login" aria-hidden="true"></i> Entrar
+      </button>
+      <div id="loginError" class="login-error" role="alert" style="display:none">
+        <i class="ti ti-alert-circle" aria-hidden="true"></i>
+        <span id="loginErrorMsg">Senha incorreta</span>
+      </div>
+    </div>
+  </section>
 
-<!-- ── MODAL: DETALHE DO CHAMADO ─────────────────────────────────── -->
-<div class="overlay" id="ovTicket">
-  <div class="modal modal-lg">
+  <!-- VIEW: PAINEL (gerenciamento) -->
+  <section id="viewPainel" class="wide" style="display:none">
+    <div class="ph">
+      <h1 class="ph-title">Painel de chamados</h1>
+      <div class="ph-actions">
+        <button class="btn btn-sm" onclick="reloadPainel()"><i class="ti ti-refresh" aria-hidden="true"></i> Atualizar</button>
+        <button class="btn btn-sm" onclick="logoutPainel()"><i class="ti ti-logout" aria-hidden="true"></i> Sair</button>
+      </div>
+    </div>
+
+    <div class="mcrow" id="mcrow"></div>
+
+    <div class="filter-bar">
+      <label class="sr-only" for="fStatus">Status</label>
+      <select id="fStatus" onchange="renderPainel()"><option value="">Todos os status</option></select>
+      <label class="sr-only" for="fSetor">Setor</label>
+      <select id="fSetor" onchange="renderPainel()"><option value="">Todos os setores</option></select>
+      <label class="sr-only" for="fBusca">Buscar</label>
+      <input id="fBusca" type="search" placeholder="Buscar por título" oninput="renderPainel()"/>
+    </div>
+
+    <div class="tlist" id="tlist"></div>
+  </section>
+
+</main>
+
+<!-- MODAL: DETALHE DO CHAMADO -->
+<div class="overlay" id="ovTicket" onclick="if(event.target===this)closeMod()">
+  <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <div class="modal-header">
-      <h3 id="mTitle">Chamado</h3>
-      <button class="btn btn-icon" onclick="closeMod()"><i class="ti ti-x"></i></button>
+      <h2 id="mTitle">Chamado</h2>
+      <button class="btn btn-icon" onclick="closeMod()" aria-label="Fechar"><i class="ti ti-x" aria-hidden="true"></i></button>
     </div>
     <div class="modal-body" id="mBody"></div>
     <div class="modal-footer" id="mFoot"></div>
   </div>
 </div>
-
-<div class="sync-bar" id="syncBar" style="display:none"></div>
 
 <script src="config.js"></script>
 <script src="app.js"></script>
